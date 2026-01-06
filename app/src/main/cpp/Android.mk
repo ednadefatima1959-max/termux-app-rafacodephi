@@ -9,7 +9,9 @@ include $(BUILD_SHARED_LIBRARY)
 # Bare-metal low-level library
 include $(CLEAR_VARS)
 LOCAL_MODULE := termux-baremetal
-LOCAL_SRC_FILES := lowlevel/baremetal.c lowlevel/baremetal_jni.c lowlevel/baremetal_asm.S
+LOCAL_SRC_FILES := lowlevel/baremetal.c lowlevel/baremetal_jni.c
+# Assembly optimizations are optional - uncomment if needed
+# LOCAL_SRC_FILES += lowlevel/baremetal_asm.S
 LOCAL_CFLAGS := -std=c11 -Wall -Wextra -Werror -Os -fno-stack-protector
 LOCAL_CFLAGS += -ffast-math -fno-exceptions -fno-rtti
 LOCAL_CFLAGS += -Wl,--gc-sections -ffunction-sections -fdata-sections
