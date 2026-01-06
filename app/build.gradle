@@ -253,6 +253,7 @@ task validatePackageNames {
     doLast {
         def errors = []
         def rootDir = project.rootProject.projectDir
+        def customPackageName = android.defaultConfig.applicationId
         
         // Files to check
         fileTree(rootDir) {
@@ -266,25 +267,28 @@ task validatePackageNames {
                 def trimmedLine = line.trim()
                 
                 // Track multi-line comments
-                if (trimmedLine.contains('/*')) inBlockComment = true
-                if (trimmedLine.contains('*/')) {
+                if (trimmedLine.contains('/*') && !trimmedLine.contains('*/')) {
+                    inBlockComment = true
+                }
+                if (inBlockComment && trimmedLine.contains('*/')) {
                     inBlockComment = false
                     return
                 }
                 
-                // Skip package declarations, imports, comments, javadocs, and default value comments
+                // Skip package declarations, imports, comments, javadocs, single-line block comments, and default value comments
                 if (trimmedLine.startsWith('package ') || 
                     trimmedLine.startsWith('import ') ||
                     trimmedLine.startsWith('//') ||
                     trimmedLine.startsWith('*') ||
                     trimmedLine.contains('package="com.termux.') || // XML package attribute for Java structure
                     line.contains('// Default:') || // Default value comments
+                    (trimmedLine.contains('/*') && trimmedLine.contains('*/')) || // Single-line block comment
                     inBlockComment) {
                     return
                 }
                 
-                // Check for hardcoded com.termux (but not com.termux.rafacodephi)
-                if (line.contains('com.termux') && !line.contains('com.termux.rafacodephi')) {
+                // Check for hardcoded com.termux (but not custom package name)
+                if (line.contains('com.termux') && !line.contains(customPackageName)) {
                     // Check if it's using a constant or placeholder or is a class reference
                     if (!line.contains('TERMUX_PACKAGE_NAME') && 
                         !line.contains('BuildConfig.APPLICATION_ID') && 
@@ -319,7 +323,7 @@ task validateStorageFlags {
     group = 'verification'
     
     doLast {
-        def targetSdk = project.properties.targetSdkVersion.toInteger()
+        def targetSdk = android.defaultConfig.targetSdkVersion.apiLevel
         if (targetSdk < 30) {
             println "⚠️  targetSdkVersion is ${targetSdk}, skipping legacy storage check"
             return
