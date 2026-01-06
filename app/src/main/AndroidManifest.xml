@@ -40,6 +40,8 @@
     <!-- Foreground service permissions (Android 14+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- FOREGROUND_SERVICE_SPECIAL_USE is required when the foreground service doesn't fit
+         standard categories. Termux uses this for terminal sessions and command execution. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     
     <!-- Notification permissions (Android 13+) -->
@@ -225,13 +227,20 @@
         <service
             android:name=".app.TermuxService"
             android:exported="false"
-            android:foregroundServiceType="dataSync|specialUse" />
+            android:foregroundServiceType="dataSync|specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="terminal_session" />
+        </service>
 
         <service
             android:name=".app.RunCommandService"
             android:exported="true"
             android:foregroundServiceType="dataSync|specialUse"
             android:permission="${TERMUX_PACKAGE_NAME}.permission.RUN_COMMAND">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="command_execution" />
             <intent-filter>
                 <action android:name="${TERMUX_PACKAGE_NAME}.RUN_COMMAND" />
             </intent-filter>
