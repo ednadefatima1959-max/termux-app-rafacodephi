@@ -18,22 +18,25 @@ jobs:
         package_variant: [ apt-android-7, apt-android-5 ]
 
     steps:
-      - name: Clone repository
+      - name: "📥 Phase 1: Clone repository"
         uses: actions/checkout@v6
 
-      - name: Setup java 17
+      - name: "☕ Phase 2: Setup Java 17"
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Build APKs
+      - name: "🔨 Phase 3: Build APKs"
         shell: bash {0}
         env:
           PACKAGE_VARIANT: ${{ matrix.package_variant }}
         run: |
           exit_on_error() { echo "$1"; exit 1; }
 
+          echo "=========================================="
+          echo "PHASE 1: Setting build variables"
+          echo "=========================================="
           echo "Setting vars"
 
           if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
@@ -57,22 +60,40 @@ jobs:
           echo "APK_VERSION_TAG=$APK_VERSION_TAG" >> $GITHUB_ENV
           echo "APK_BASENAME_PREFIX=$APK_BASENAME_PREFIX" >> $GITHUB_ENV
 
+          echo ""
+          echo "=========================================="
+          echo "PHASE 2: Building APKs"
+          echo "=========================================="
           echo "Building APKs for 'APK_VERSION_TAG' build"
+          echo "Package variant: ${{ env.PACKAGE_VARIANT }}"
+          echo "Version: ${RELEASE_VERSION_NAME/v/}"
+          echo ""
           export TERMUX_APP_VERSION_NAME="${RELEASE_VERSION_NAME/v/}" # Used by app/build.gradle
           export TERMUX_APK_VERSION_TAG="$APK_VERSION_TAG" # Used by app/build.gradle
           export TERMUX_PACKAGE_VARIANT="${{ env.PACKAGE_VARIANT }}" # Used by app/build.gradle
+          
+          echo "Starting Gradle build process..."
           if ! ./gradlew assembleDebug; then
             exit_on_error "Build failed for '$APK_VERSION_TAG' build."
           fi
-
+          
+          echo ""
+          echo "=========================================="
+          echo "PHASE 3: Validating APKs"
+          echo "=========================================="
           echo "Validating APKs"
           for abi in universal arm64-v8a armeabi-v7a x86_64 x86; do
             if ! test -f "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_$abi.apk"; then
               files_found="$(ls "$APK_DIR_PATH")"
               exit_on_error "Failed to find built APK at '$APK_DIR_PATH/${APK_BASENAME_PREFIX}_$abi.apk'. Files found: "$'\n'"$files_found"
             fi
+            echo "✓ Found APK: ${APK_BASENAME_PREFIX}_$abi.apk"
           done
 
+          echo ""
+          echo "=========================================="
+          echo "PHASE 4: Generating checksums"
+          echo "=========================================="
           echo "Generating sha25sums file"
           if ! (cd "$APK_DIR_PATH"; sha256sum \
             "${APK_BASENAME_PREFIX}_universal.apk" \
@@ -83,8 +104,15 @@ jobs:
             > "${APK_BASENAME_PREFIX}_sha256sums"); then
             exit_on_error "Generate sha25sums failed for '$APK_VERSION_TAG' release."
           fi
+          
+          echo ""
+          echo "=========================================="
+          echo "BUILD COMPLETED SUCCESSFULLY"
+          echo "=========================================="
+          echo "All APKs built and validated for: $APK_VERSION_TAG"
+          echo ""
 
-      - name: Attach universal APK file
+      - name: "📦 Phase 4.1: Upload universal APK artifact"
         uses: actions/upload-artifact@v6
         with:
           name: ${{ env.APK_BASENAME_PREFIX }}_universal
@@ -92,7 +120,7 @@ jobs:
             ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_universal.apk
             ${{ env.APK_DIR_PATH }}/output-metadata.json
 
-      - name: Attach arm64-v8a APK file
+      - name: "📦 Phase 4.2: Upload arm64-v8a APK artifact"
         uses: actions/upload-artifact@v6
         with:
           name: ${{ env.APK_BASENAME_PREFIX }}_arm64-v8a
@@ -100,7 +128,7 @@ jobs:
             ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_arm64-v8a.apk
             ${{ env.APK_DIR_PATH }}/output-metadata.json
 
-      - name: Attach armeabi-v7a APK file
+      - name: "📦 Phase 4.3: Upload armeabi-v7a APK artifact"
         uses: actions/upload-artifact@v6
         with:
           name: ${{ env.APK_BASENAME_PREFIX }}_armeabi-v7a
@@ -108,7 +136,7 @@ jobs:
             ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_armeabi-v7a.apk
             ${{ env.APK_DIR_PATH }}/output-metadata.json
 
-      - name: Attach x86_64 APK file
+      - name: "📦 Phase 4.4: Upload x86_64 APK artifact"
         uses: actions/upload-artifact@v6
         with:
           name: ${{ env.APK_BASENAME_PREFIX }}_x86_64
@@ -116,7 +144,7 @@ jobs:
             ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_x86_64.apk
             ${{ env.APK_DIR_PATH }}/output-metadata.json
 
-      - name: Attach x86 APK file
+      - name: "📦 Phase 4.5: Upload x86 APK artifact"
         uses: actions/upload-artifact@v6
         with:
           name: ${{ env.APK_BASENAME_PREFIX }}_x86
@@ -124,7 +152,7 @@ jobs:
             ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_x86.apk
             ${{ env.APK_DIR_PATH }}/output-metadata.json
 
-      - name: Attach sha256sums file
+      - name: "📦 Phase 4.6: Upload sha256sums artifact"
         uses: actions/upload-artifact@v6
         with:
           name: ${{ env.APK_BASENAME_PREFIX }}_sha256sums
