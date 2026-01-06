@@ -1,5 +1,16 @@
 # Reducing Java Dependencies with Low-Level Bare-Metal Module
 
+## Attribution Notice
+
+**Copyright**: © instituto-Rafael and contributors  
+**Original Termux Project**: [termux/termux-app](https://github.com/termux/termux-app)  
+**License**: GPLv3  
+**Fork**: This documentation is part of the RafaCodePhi fork
+
+This document describes implementation-specific additions to the fork.
+
+---
+
 ## Overview
 
 This document explains how to reduce external Java dependencies in Termux by leveraging the new low-level bare-metal optimization module.

@@ -1,5 +1,16 @@
 # Low-Level Bare-Metal Optimization Module - Implementation Summary
 
+## Attribution Notice
+
+**Copyright**: © instituto-Rafael and contributors  
+**Original Termux Project**: [termux/termux-app](https://github.com/termux/termux-app)  
+**License**: GPLv3  
+**Fork**: This documentation is part of the RafaCodePhi fork
+
+This document describes implementation-specific additions to the fork.
+
+---
+
 ## Overview
 
 This document summarizes the implementation of the low-level bare-metal optimization module for Termux, addressing the requirements for minimal Java dependencies, bare-metal C/ASM optimizations, and mathematical operations including VA (Vectra Analysis) and ANOVA functionality.
