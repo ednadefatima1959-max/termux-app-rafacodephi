@@ -10,8 +10,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -79,6 +79,9 @@ import java.util.Arrays;
  * about memory leaks.
  */
 public final class TermuxActivity extends AppCompatActivity implements ServiceConnection {
+
+    /** Avoid starting/binding the TermuxService multiple times. */
+    private boolean mIsTermuxServiceStartedAndBound;
 
     /**
      * The connection to the {@link TermuxService}. Requested in {@link #onCreate(Bundle)} with a call to
@@ -216,11 +219,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setContentView(R.layout.activity_termux);
 
-        // Android 11+ (especially Android 15/API 35) will hard-fail shared storage access
-        // if All Files Access is not granted. Request it early so we don't crash later
-        // when any code path touches /sdcard or ~/storage/shared.
-        maybeRequestAllFilesAccessOnStartup();
-
         // Load termux shared preferences
         // This will also fail if TermuxConstants.TERMUX_PACKAGE_NAME does not equal applicationId
         mPreferences = TermuxAppSharedPreferences.build(this, true);
@@ -261,6 +259,48 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         FileReceiverActivity.updateFileReceiverActivityComponentsState(this);
 
+        // On Android 11+ (especially with targetSdk>=30), Termux will often touch primary external
+        // storage (e.g. ~/storage/shared) early during initialization or soon after. If the user
+        // has not granted legacy/managing external storage permission, this can lead to failures
+        // that look like "opens then instantly closes". So we request permission BEFORE starting
+        // the TermuxService.
+        if (!ensureStorageAccessOrRequest()) {
+            // Permission request UI has been launched. Wait for callback.
+            return;
+        }
+
+        startAndBindTermuxServiceOrFail();
+    }
+
+    /**
+     * Request legacy storage or manage external storage permission if needed.
+     *
+     * @return true if permission is already granted OR not required for this device/sdk, false if
+     *         we had to launch a permission request flow.
+     */
+    private boolean ensureStorageAccessOrRequest() {
+        // Termux primarily needs this for "~/storage/shared" access.
+        // If permission is already granted, proceed.
+        try {
+            // If on Android 11+ and not granted, this will launch Settings for "All files access".
+            // On older Android, it will request legacy READ/WRITE.
+            if (!PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
+                this, PermissionUtils.REQUEST_GRANT_STORAGE_PERMISSION, true)) {
+                return false;
+            }
+        } catch (Throwable t) {
+            // Never crash during permission checks.
+            Logger.logStackTraceWithMessage(LOG_TAG, "Storage permission check failed", t);
+        }
+        return true;
+    }
+
+    /** Start and bind TermuxService exactly once. */
+    private void startAndBindTermuxServiceOrFail() {
+        if (mIsTermuxServiceStartedAndBound) {
+            return;
+        }
+
         try {
             // Start the {@link TermuxService} and make it run regardless of who is bound to it
             Intent serviceIntent = new Intent(this, TermuxService.class);
@@ -270,6 +310,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             // callback if it succeeds.
             if (!bindService(serviceIntent, this, 0))
                 throw new RuntimeException("bindService() failed");
+
+            mIsTermuxServiceStartedAndBound = true;
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG,"TermuxActivity failed to start TermuxService", e);
             Logger.showToast(this,
@@ -766,30 +808,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
 
 
-
-    /**
-     * Request All Files Access (MANAGE_EXTERNAL_STORAGE) on Android 11+ if not already granted.
-     *
-     * Termux can run without it, but any code path that touches shared storage (/sdcard, ~/storage/shared)
-     * will throw SecurityException/EACCES on modern Android if permission isn't granted.
-     *
-     * This is a startup guard to prevent "opens then instantly crashes" after raising targetSdkVersion.
-     */
-    private void maybeRequestAllFilesAccessOnStartup() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // If legacy storage is possible, Termux will request READ/WRITE when user runs setup-storage,
-                // otherwise it requires MANAGE_EXTERNAL_STORAGE for primary shared storage access.
-                if (!PermissionUtils.isLegacyExternalStoragePossible(this) && !Environment.isExternalStorageManager()) {
-                    // Trigger the existing request flow (opens system Settings screen).
-                    requestStoragePermission(false);
-                }
-            }
-        } catch (Throwable t) {
-            // Never crash the app because of permission checks.
-            Logger.logStackTraceWithMessage(LOG_TAG, "maybeRequestAllFilesAccessOnStartup failed", t);
-        }
-    }
     /**
      * For processes to access primary external storage (/sdcard, /storage/emulated/0, ~/storage/shared),
      * termux needs to be granted legacy WRITE_EXTERNAL_STORAGE or MANAGE_EXTERNAL_STORAGE permissions
@@ -825,6 +843,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         Logger.logVerbose(LOG_TAG, "onActivityResult: requestCode: " + requestCode + ", resultCode: "  + resultCode + ", data: "  + IntentUtils.getIntentString(data));
         if (requestCode == PermissionUtils.REQUEST_GRANT_STORAGE_PERMISSION) {
             requestStoragePermission(true);
+            // If permission granted, we can now start/bind the service.
+            if (ensureStorageAccessOrRequest()) {
+                startAndBindTermuxServiceOrFail();
+            }
         }
     }
 
@@ -834,6 +856,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         Logger.logVerbose(LOG_TAG, "onRequestPermissionsResult: requestCode: " + requestCode + ", permissions: "  + Arrays.toString(permissions) + ", grantResults: "  + Arrays.toString(grantResults));
         if (requestCode == PermissionUtils.REQUEST_GRANT_STORAGE_PERMISSION) {
             requestStoragePermission(true);
+            // If permission granted, we can now start/bind the service.
+            if (ensureStorageAccessOrRequest()) {
+                startAndBindTermuxServiceOrFail();
+            }
         }
     }
 
