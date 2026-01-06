@@ -23,6 +23,10 @@ public final class RafaeliaUtils {
         throw new AssertionError("Utility class - do not instantiate");
     }
     
+    // Constants
+    private static final float EPSILON = 1e-10f;  // Threshold for floating-point comparisons
+    private static final int UNROLL_FACTOR = 4;   // Loop unrolling factor for vector operations
+    
     // ==================== Memory Operations ====================
     
     /**
@@ -60,7 +64,7 @@ public final class RafaeliaUtils {
     
     /**
      * Fast integer power (no library dependencies).
-     * Optimized with loop unrolling for common exponents.
+     * Uses exponentiation by squaring for optimal performance.
      * 
      * @param base Base value
      * @param exp Exponent (integer)
@@ -75,27 +79,16 @@ public final class RafaeliaUtils {
         int absExp = negative ? -exp : exp;
         
         float result = 1.0f;
+        float current = base;
         
-        // Optimized for small exponents (most common case)
-        switch (absExp) {
-            case 1: result = base; break;
-            case 2: result = base * base; break;
-            case 3: result = base * base * base; break;
-            case 4: {
-                float sq = base * base;
-                result = sq * sq;
-                break;
+        // Exponentiation by squaring (binary method)
+        // For exp = 13 (binary: 1101), computes base^8 * base^4 * base^1
+        while (absExp > 0) {
+            if ((absExp & 1) == 1) {
+                result *= current;
             }
-            default:
-                // General case with exponentiation by squaring
-                float current = base;
-                while (absExp > 0) {
-                    if ((absExp & 1) == 1) {
-                        result *= current;
-                    }
-                    current *= current;
-                    absExp >>= 1;
-                }
+            current *= current;
+            absExp >>= 1;
         }
         
         return negative ? (1.0f / result) : result;
@@ -121,9 +114,10 @@ public final class RafaeliaUtils {
         
         // Unrolled loop for better performance
         int i = 0;
-        int unrollLimit = len & ~3; // Round down to multiple of 4
+        // Round down to nearest multiple of UNROLL_FACTOR
+        int unrollLimit = len & ~(UNROLL_FACTOR - 1);
         
-        for (; i < unrollLimit; i += 4) {
+        for (; i < unrollLimit; i += UNROLL_FACTOR) {
             sum += v1[i] * v2[i] + v1[i+1] * v2[i+1] + 
                    v1[i+2] * v2[i+2] + v1[i+3] * v2[i+3];
         }
@@ -150,9 +144,10 @@ public final class RafaeliaUtils {
         // Optimized loop with unrolling
         int i = 0;
         int len = v.length;
-        int unrollLimit = len & ~3;
+        // Round down to nearest multiple of UNROLL_FACTOR
+        int unrollLimit = len & ~(UNROLL_FACTOR - 1);
         
-        for (; i < unrollLimit; i += 4) {
+        for (; i < unrollLimit; i += UNROLL_FACTOR) {
             sumSq += v[i] * v[i] + v[i+1] * v[i+1] + 
                      v[i+2] * v[i+2] + v[i+3] * v[i+3];
         }
@@ -173,7 +168,7 @@ public final class RafaeliaUtils {
         if (v == null || v.length == 0) return;
         
         float mag = magnitude(v);
-        if (mag < 1e-10f) return; // Avoid division by zero
+        if (mag < EPSILON) return; // Avoid division by zero
         
         float invMag = 1.0f / mag;
         for (int i = 0; i < v.length; i++) {

@@ -156,8 +156,9 @@ Java_com_termux_rafaelia_RafaeliaUtils_initVA(JNIEnv *env, jclass clazz,
     (void)featureType;
     // Stub: return a dummy context handle
     // In production, this would allocate and initialize a VA context
+    // Using 0 to indicate stub/uninitialized context
     if (spaceDim <= 0) return 0;
-    return (jlong)1; // Dummy handle
+    return 0; // Stub implementation - proper context allocation needed
 }
 
 JNIEXPORT void JNICALL

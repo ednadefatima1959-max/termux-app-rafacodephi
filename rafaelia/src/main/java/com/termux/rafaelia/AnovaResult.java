@@ -8,6 +8,9 @@ package com.termux.rafaelia;
  */
 public final class AnovaResult {
     
+    // Threshold for floating-point comparisons
+    private static final float EPSILON = 1e-10f;
+    
     /** Model coefficients (e.g., [intercept, slope] for linear) */
     public final float[] coefficients;
     
@@ -60,7 +63,7 @@ public final class AnovaResult {
      * @return R-squared value [0, 1]
      */
     public float getRSquared() {
-        if (ssTotal < 1e-10f) return 0.0f;
+        if (ssTotal < EPSILON) return 0.0f;
         return ssModel / ssTotal;
     }
     
@@ -78,7 +81,7 @@ public final class AnovaResult {
         float numerator = ssError / (n - p);
         float denominator = ssTotal / (n - 1);
         
-        if (denominator < 1e-10f) return 0.0f;
+        if (denominator < EPSILON) return 0.0f;
         
         return 1.0f - numerator / denominator;
     }
@@ -97,7 +100,7 @@ public final class AnovaResult {
         float msModel = ssModel / (p - 1);
         float msError = ssError / (n - p);
         
-        if (msError < 1e-10f) {
+        if (msError < EPSILON) {
             return Float.POSITIVE_INFINITY;
         }
         
