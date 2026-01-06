@@ -1,4 +1,24 @@
-# Termux application
+# Termux Application - RafaCodePhi Fork
+
+## Fork Notice and Attribution
+
+**This is a fork of the original [Termux](https://github.com/termux/termux-app) project.**
+
+### Original Project
+- **Original Repository**: [termux/termux-app](https://github.com/termux/termux-app)
+- **Original Authors**: The Termux team and contributors
+- **Original License**: GPLv3 (with exceptions as detailed in LICENSE.md)
+- **Website**: [https://termux.com](https://termux.com)
+
+### Fork Information
+- **Fork Maintained By**: instituto-Rafael
+- **Fork Repository**: [instituto-Rafael/termux-app-rafacodephi](https://github.com/instituto-Rafael/termux-app-rafacodephi)
+- **Purpose**: Enhanced version with additional features and customizations
+
+### Legal Notice
+This fork complies with the GPLv3 license of the original Termux project. All modifications and additions are also released under GPLv3 (unless otherwise specified). We acknowledge and respect the intellectual property rights of the original Termux developers and all contributors to the upstream project.
+
+---
 
 [![Build status](https://github.com/termux/termux-app/workflows/Build/badge.svg)](https://github.com/termux/termux-app/actions)
 [![Testing status](https://github.com/termux/termux-app/workflows/Unit%20tests/badge.svg)](https://github.com/termux/termux-app/actions)
@@ -6,6 +26,7 @@
 [![Join the Termux discord server](https://img.shields.io/discord/641256914684084234.svg?label=&logo=discord&logoColor=ffffff&color=5865F2)](https://discord.gg/HXpF69X)
 [![Termux library releases at Jitpack](https://jitpack.io/v/termux/termux-app.svg)](https://jitpack.io/#termux/termux-app)
 
+## About Termux
 
 [Termux](https://termux.com) is an Android terminal application and Linux environment.
 
@@ -22,6 +43,7 @@ Quick how-to about Termux package management is available at [Package Management
 ***
 
 ## Contents
+- [Fork Notice and Attribution](#fork-notice-and-attribution)
 - [Termux App and Plugins](#termux-app-and-plugins)
 - [Installation](#installation)
 - [Uninstallation](#uninstallation)
@@ -30,6 +52,7 @@ Quick how-to about Termux package management is available at [Package Management
 - [For Maintainers and Contributors](#for-maintainers-and-contributors)
 - [Forking](#forking)
 - [Sponsors and Funders](#sponsors-and-funders)
+- [Acknowledgments and Attribution](#acknowledgments-and-attribution)
 ##
 
 
@@ -293,3 +316,95 @@ Commit messages **must** use the [Conventional Commits](https://www.conventional
 
 [<img alt="Warp" width="25%" src="https://github.com/warpdotdev/brand-assets/blob/640dffd347439bbcb535321ab36b7281cf4446c0/Github/Sponsor/Warp-Github-LG-03.png" />](https://www.warp.dev/?utm_source=github&utm_medium=readme&utm_campaign=termux)  
 [*Warp, built for coding with multiple AI agents*](https://www.warp.dev/?utm_source=github&utm_medium=readme&utm_campaign=termux)
+
+##
+
+## Acknowledgments and Attribution
+
+**For a complete list of contributors and detailed attribution information, please see [CONTRIBUTORS.md](CONTRIBUTORS.md).**
+
+### Upstream Project Acknowledgment
+
+This project is a fork of the **Termux** project, originally created and maintained by the Termux development team. We are deeply grateful to all the original contributors who have made Termux what it is today. Their work forms the foundation of this fork.
+
+**Original Termux Project:**
+- Repository: [https://github.com/termux/termux-app](https://github.com/termux/termux-app)
+- Website: [https://termux.com](https://termux.com)
+- License: GPLv3 (with specified exceptions)
+
+### Component Attributions
+
+This project incorporates code from multiple sources, each with their own licenses and contributors:
+
+#### 1. Termux Core Application
+- **Copyright**: © Termux developers and contributors
+- **License**: GPLv3 only
+- **Source**: [termux/termux-app](https://github.com/termux/termux-app)
+- **Attribution**: All core functionality, UI, and terminal integration
+
+#### 2. Terminal Emulator for Android
+- **Copyright**: © Jack Palevich and contributors
+- **License**: Apache 2.0
+- **Source**: [jackpal/Android-Terminal-Emulator](https://github.com/jackpal/Android-Terminal-Emulator)
+- **Attribution**: Terminal emulation engine used in `terminal-view` and `terminal-emulator` libraries
+- **License Text**: [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0)
+
+#### 3. Termux-Shared Library
+- **Copyright**: © Termux developers and contributors
+- **License**: MIT (with GPLv3 exceptions for specific directories)
+- **Details**: See [termux-shared/LICENSE.md](termux-shared/LICENSE.md)
+- **Exceptions**:
+  - GPLv3 for `src/main/java/com/termux/shared/termux/*`
+  - GPLv2 with Classpath exception for filesystem components derived from Android libcore/ojluni
+  - Apache 2.0 for StreamGobbler derived from libsuperuser
+
+#### 4. Android Open Source Project (AOSP) Components
+- **Copyright**: © The Android Open Source Project
+- **License**: GPLv2 with Classpath Exception
+- **Source**: [Android Platform libcore/ojluni](https://cs.android.com/android/platform/superproject/+/android-11.0.0_r3:libcore/ojluni/)
+- **Attribution**: Filesystem utilities in `termux-shared/src/main/java/com/termux/shared/file/filesystem/`
+
+#### 5. libsuperuser
+- **Copyright**: © Chainfire
+- **License**: Apache 2.0
+- **Source**: [Chainfire/libsuperuser](https://github.com/Chainfire/libsuperuser)
+- **Attribution**: StreamGobbler implementation in `termux-shared/src/main/java/com/termux/shared/shell/StreamGobbler.java`
+
+### Contributors
+
+We acknowledge and thank:
+
+1. **Original Termux Team and All Contributors** - For creating and maintaining the original Termux application
+2. **Jack Palevich** - For the Android Terminal Emulator that serves as the foundation for terminal functionality
+3. **Chainfire** - For libsuperuser components
+4. **The Android Open Source Project** - For filesystem utilities
+5. **All community contributors** - Everyone who has contributed code, bug reports, documentation, translations, and support to the Termux ecosystem
+
+### Full License Texts
+
+For complete license texts and legal information:
+- GPLv3: [https://www.gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html)
+- Apache 2.0: [https://www.apache.org/licenses/LICENSE-2.0](https://www.apache.org/licenses/LICENSE-2.0)
+- MIT: [https://opensource.org/licenses/MIT](https://opensource.org/licenses/MIT)
+- GPLv2 with Classpath Exception: [https://openjdk.java.net/legal/gplv2+ce.html](https://openjdk.java.net/legal/gplv2+ce.html)
+
+### Copyright Notice
+
+This fork maintains all original copyright notices and attributions. Any modifications made in this fork are:
+- **Copyright**: © instituto-Rafael and RafaCodePhi contributors
+- **License**: GPLv3 (matching the upstream license)
+
+### Legal Compliance
+
+This project complies with:
+- The GNU General Public License v3.0
+- The Apache License 2.0 for applicable components
+- The MIT License for applicable components
+- International copyright law and intellectual property regulations
+- All license requirements including attribution, notice preservation, and copyleft provisions
+
+Every contribution, no matter how small, is significant and acknowledged. Even a single character or punctuation mark change is attributed to its contributor, as required by software licensing best practices and copyright law.
+
+### Trademark Notice
+
+"Termux" is a trademark of the original Termux project. This fork is not officially endorsed by or affiliated with the original Termux project, though it maintains full compliance with the GPLv3 license under which Termux is released.
