@@ -38,7 +38,7 @@ ifeq ($(TARGET_ARCH_ABI),x86_64)
     LOCAL_CFLAGS += -msse2 -msse4.2 -mavx -ftree-vectorize
 endif
 
-# Link against pthread for thread support and math library
+# Link against log and math libraries
 LOCAL_LDLIBS := -llog -lm
 include $(BUILD_SHARED_LIBRARY)
 

@@ -60,8 +60,9 @@ for arch in arm64-v8a x86_64 armeabi-v7a x86; do
                 if command -v readelf &> /dev/null; then
                     LIBS_CHECKED=$((LIBS_CHECKED + 1))
                     
-                    # Check page alignment
-                    ALIGNMENT=$(readelf -l "$lib" 2>/dev/null | grep -A1 "LOAD" | grep -o "0x[0-9a-f]\+" | tail -1)
+                    # Check page alignment - extract from LOAD segment's Align field
+                    # The alignment is the last field on the second line after "LOAD"
+                    ALIGNMENT=$(readelf -l "$lib" 2>/dev/null | awk '/LOAD/{getline; print $NF; exit}')
                     
                     # Track by architecture
                     if [ "$arch" = "arm64-v8a" ]; then
@@ -70,8 +71,10 @@ for arch in arm64-v8a x86_64 armeabi-v7a x86; do
                         X86_64_TOTAL=$((X86_64_TOTAL + 1))
                     fi
                     
+                    # Accept 16KB (0x4000) or larger alignment (like 64KB = 0x10000)
+                    # Larger alignments are compatible with 16KB requirement
                     if [ "$ALIGNMENT" = "0x4000" ] || [ "$ALIGNMENT" = "0x10000" ]; then
-                        echo -e "  ${COLOR_GREEN}✓${COLOR_RESET} $LIBNAME - Alignment: $ALIGNMENT (16KB = 0x4000) ✓"
+                        echo -e "  ${COLOR_GREEN}✓${COLOR_RESET} $LIBNAME - Alignment: $ALIGNMENT (≥16KB) ✓"
                         LIBS_VALID=$((LIBS_VALID + 1))
                         if [ "$arch" = "arm64-v8a" ]; then
                             ARM64_VALID=$((ARM64_VALID + 1))
