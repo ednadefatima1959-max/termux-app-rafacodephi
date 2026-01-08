@@ -1,10 +1,10 @@
-# 🎯 Termux RAFCODEΦ - Android 15 Compatibility Report
+# 🎯 Termux RAFCODEΦ - Target SDK 28 Compatibility Report
 
 ## 📋 Executive Summary
 
-**Status:** ✅ **READY FOR ANDROID 15 (API 35)**
+**Status:** ✅ **TARGET SDK 28 (API 28)**
 
-This fork of Termux has been successfully updated to target Android 15 (API 35) with full support for:
+This fork of Termux has been set to target Android 9 (API 28) with full support for:
 - ✅ Modern storage access (no legacy storage APIs)
 - ✅ Proper foreground service types
 - ✅ Side-by-side installation with original Termux
@@ -20,11 +20,11 @@ This fork of Termux has been successfully updated to target Android 15 (API 35) 
 **File:** `gradle.properties`
 
 ```diff
-- targetSdkVersion=28
-+ targetSdkVersion=35
+- targetSdkVersion=35
++ targetSdkVersion=28
 ```
 
-**Impact:** App now targets Android 15, ensuring compatibility with modern Android APIs and Play Store requirements.
+**Impact:** App now targets Android 9 (API 28), aligning the build configuration with the requested target SDK level.
 
 ---
 
@@ -56,7 +56,7 @@ This fork of Termux has been successfully updated to target Android 15 (API 35) 
 **Why:** Android 11+ enforces scoped storage. READ/WRITE_EXTERNAL_STORAGE are no longer used on Android 13+. The app can request MANAGE_EXTERNAL_STORAGE for full filesystem access, but it's optional.
 
 **How to Test:**
-- On Android 15, the app will use scoped storage by default
+- On Android 11+, the app will use scoped storage by default
 - Users can grant "All files access" via Settings → Apps → Termux RAFCODEΦ → Permissions
 - Check with: `Environment.isExternalStorageManager()` in code
 
@@ -129,7 +129,7 @@ This fork of Termux has been successfully updated to target Android 15 (API 35) 
 
 ### Automated Validation Tasks
 
-We've added Gradle tasks to ensure Android 15 compliance:
+We've added Gradle tasks to ensure target SDK compliance:
 
 #### 1. Package Name Validation
 ```bash
@@ -187,7 +187,7 @@ We've added Gradle tasks to ensure Android 15 compliance:
 
 ---
 
-## 🧪 Testing on Android 15
+## 🧪 Testing on Android 9+
 
 ### Installation Test
 ```bash
@@ -278,7 +278,7 @@ These limitations do not affect core functionality and can be addressed in futur
 
 ## ✅ Compliance Checklist
 
-- [x] Targets Android 15 (API 35)
+- [x] Targets Android 9 (API 28)
 - [x] No legacy storage APIs
 - [x] Foreground service types declared
 - [x] PendingIntent flags set
@@ -293,7 +293,7 @@ These limitations do not affect core functionality and can be addressed in futur
 
 ## 📚 References
 
-- [Android 15 Behavior Changes](https://developer.android.com/about/versions/15/behavior-changes-15)
+- [Android 9 Behavior Changes](https://developer.android.com/about/versions/pie/behavior-changes-9)
 - [Scoped Storage](https://developer.android.com/training/data-storage#scoped-storage)
 - [Foreground Services](https://developer.android.com/develop/background-work/services/foreground-services)
 - [PendingIntent Security](https://developer.android.com/privacy-and-security/risks/pending-intent)
@@ -305,13 +305,13 @@ These limitations do not affect core functionality and can be addressed in futur
 **Version: 0.118.0-rafacodephi**
 
 ### Added
-- Android 15 (API 35) support
-- Gradle validation tasks for Android 15 compliance
+- Android 9 (API 28) target baseline
+- Gradle validation tasks for target SDK 28 compliance
 - Foreground service types (dataSync)
 - PendingIntent mutability flags
 
 ### Changed
-- Updated targetSdkVersion from 28 to 35
+- Set targetSdkVersion to 28
 - Scoped READ/WRITE_EXTERNAL_STORAGE to maxSdkVersion 32
 - Removed requestLegacyExternalStorage flag
 

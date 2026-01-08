@@ -1,4 +1,4 @@
-# 🎯 RESUMO FINAL - Android 15 Compatibilidade Implementada
+# 🎯 RESUMO FINAL - Target SDK 28 Ajustado
 
 ## ✅ STATUS: TODOS OS REQUISITOS ATENDIDOS
 
@@ -13,12 +13,12 @@ Este documento resume todas as mudanças implementadas conforme solicitado no is
 **Arquivo Modificado:** `gradle.properties`
 
 ```properties
-targetSdkVersion=35  # Atualizado de 28 para 35
+targetSdkVersion=28  # Mantido em 28
 compileSdkVersion=36 # Mantido em 36
 minSdkVersion=21     # Mantido em 21
 ```
 
-**Resultado:** App agora tem como alvo Android 15 (API 35)
+**Resultado:** App agora tem como alvo Android 9 (API 28)
 
 ---
 
@@ -118,7 +118,7 @@ int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 ✅ Package name validation passed!
 ✅ Storage flags validation passed!
 ✅ Authorities validation passed!
-✅ All Android 15 compatibility validations passed!
+✅ All target SDK compatibility validations passed!
 ```
 
 **Documentação Criada:**
@@ -172,9 +172,9 @@ adb shell pm list packages | grep termux
 
 ## 📊 Comparação: Antes vs Depois
 
-| Aspecto | Antes (API 28) | Depois (API 35) |
+| Aspecto | Antes (API 28) | Depois (API 28) |
 |---------|---------------|-----------------|
-| Target SDK | 28 (Android 9) | 35 (Android 15) |
+| Target SDK | 28 (Android 9) | 28 (Android 9) |
 | Legacy Storage | ✅ Usado | ❌ Removido |
 | Scoped Storage | ❌ Não | ✅ Sim |
 | Permissões Privilegiadas | ✅ 4 declaradas | ❌ Removidas |
@@ -187,8 +187,8 @@ adb shell pm list packages | grep termux
 
 ## 🎯 Compliance Checklist
 
-### Requisitos Android 15
-- [x] targetSdkVersion=35
+### Requisitos Android 9 (API 28)
+- [x] targetSdkVersion=28
 - [x] Sem requestLegacyExternalStorage
 - [x] Sem permissões READ/WRITE_EXTERNAL_STORAGE em API 33+
 - [x] foregroundServiceType declarado
@@ -235,7 +235,7 @@ adb shell pm list packages | grep termux
 
 ---
 
-## 🧪 Testes Recomendados no Android 15
+## 🧪 Testes Recomendados no Android 9+
 
 ### 1. Teste de Instalação
 ```bash
@@ -317,7 +317,7 @@ adb shell ls /data/data/ | grep termux
 
 ### Todos os requisitos foram atendidos:
 
-1. ✅ **SDK Atualizado:** targetSdkVersion=35
+1. ✅ **SDK Atualizado:** targetSdkVersion=28
 2. ✅ **Storage Modernizado:** Scoped storage, sem APIs legadas
 3. ✅ **Permissões Limpas:** Sem permissões privilegiadas
 4. ✅ **Services Conformes:** foregroundServiceType + PendingIntent flags
