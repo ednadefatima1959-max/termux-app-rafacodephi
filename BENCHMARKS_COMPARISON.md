@@ -469,7 +469,7 @@ if (cpu_has_neon()) {
 #### 6.3.1 Tarefas Gradle Customizadas
 
 ```bash
-# Validações Android 15
+# Validações Target SDK 28
 ./gradlew :app:validatePackageNames
 ./gradlew :app:validateStorageFlags
 ./gradlew :app:validateAuthorities
@@ -497,11 +497,11 @@ if (cpu_has_neon()) {
 
 **Resultado**: Instalação simultânea com Termux Oficial sem conflitos.
 
-#### 6.4.2 Android 15 Ready
+#### 6.4.2 Target SDK 28 Ready
 
 | Requisito | Status |
 |-----------|--------|
-| targetSdkVersion=35 | ✅ |
+| targetSdkVersion=28 | ✅ |
 | Scoped Storage | ✅ |
 | Foreground Service Type | ✅ (dataSync) |
 | PendingIntent Flags | ✅ (FLAG_IMMUTABLE) |
@@ -590,7 +590,7 @@ if (cpu_has_neon()) {
 
 **Market Share**:
 - Android 7+: ~95% dos dispositivos ativos
-- Android 15: Última versão, futuro-proof
+- Android 9: Baseline conservador e compatível
 - **Benefício**: Quase todos usuários Android podem usar
 
 #### 7.5.2 Longevidade
@@ -708,7 +708,7 @@ ls -lh app/build/outputs/apk/debug/
 
 - **OS**: Linux, macOS, Windows (WSL2)
 - **JDK**: 17 ou superior
-- **Android SDK**: API 35 (Android 15)
+- **Android SDK**: API 28 (Android 9)
 - **NDK**: r25c
 - **RAM**: 8 GB mínimo (16 GB recomendado)
 - **Espaço**: 10 GB

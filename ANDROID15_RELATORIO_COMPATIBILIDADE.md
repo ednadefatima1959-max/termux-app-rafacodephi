@@ -1,10 +1,10 @@
-# 🎯 Termux RAFCODEΦ - Relatório de Compatibilidade Android 15
+# 🎯 Termux RAFCODEΦ - Relatório de Compatibilidade Target SDK 28
 
 ## 📋 Resumo Executivo
 
-**Status:** ✅ **PRONTO PARA ANDROID 15 (API 35)**
+**Status:** ✅ **TARGET SDK 28 (API 28)**
 
-Este fork do Termux foi atualizado com sucesso para o Android 15 (API 35) com suporte completo para:
+Este fork do Termux foi configurado para o Android 9 (API 28) com suporte completo para:
 - ✅ Acesso moderno ao armazenamento (sem APIs legadas)
 - ✅ Tipos de serviço em primeiro plano adequados
 - ✅ Instalação lado a lado com Termux original
@@ -20,11 +20,11 @@ Este fork do Termux foi atualizado com sucesso para o Android 15 (API 35) com su
 **Arquivo:** `gradle.properties`
 
 ```diff
-- targetSdkVersion=28
-+ targetSdkVersion=35
+- targetSdkVersion=35
++ targetSdkVersion=28
 ```
 
-**Impacto:** O app agora tem como alvo Android 15, garantindo compatibilidade com APIs modernas do Android e requisitos da Play Store.
+**Impacto:** O app agora tem como alvo Android 9 (API 28), alinhando o build ao nível de SDK solicitado.
 
 ---
 
@@ -56,7 +56,7 @@ Este fork do Termux foi atualizado com sucesso para o Android 15 (API 35) com su
 **Por quê:** Android 11+ impõe armazenamento com escopo. READ/WRITE_EXTERNAL_STORAGE não são mais usados no Android 13+. O app pode solicitar MANAGE_EXTERNAL_STORAGE para acesso completo ao sistema de arquivos, mas é opcional.
 
 **Como Testar:**
-- No Android 15, o app usará armazenamento com escopo por padrão
+- No Android 11+, o app usará armazenamento com escopo por padrão
 - Usuários podem conceder "Acesso a todos os arquivos" via Configurações → Apps → Termux RAFCODEΦ → Permissões
 - Verificar com: `Environment.isExternalStorageManager()` no código
 
@@ -129,7 +129,7 @@ Este fork do Termux foi atualizado com sucesso para o Android 15 (API 35) com su
 
 ### Tarefas de Validação Automatizadas
 
-Adicionamos tarefas Gradle para garantir conformidade com Android 15:
+Adicionamos tarefas Gradle para garantir conformidade com o target SDK:
 
 #### 1. Validação de Nome de Pacote
 ```bash
@@ -187,7 +187,7 @@ Adicionamos tarefas Gradle para garantir conformidade com Android 15:
 
 ---
 
-## 🧪 Testando no Android 15
+## 🧪 Testando no Android 9+
 
 ### Teste de Instalação
 ```bash
@@ -278,7 +278,7 @@ Estas limitações não afetam a funcionalidade principal e podem ser abordadas 
 
 ## ✅ Checklist de Conformidade
 
-- [x] Tem como alvo Android 15 (API 35)
+- [x] Tem como alvo Android 9 (API 28)
 - [x] Sem APIs de armazenamento legadas
 - [x] Tipos de serviço em primeiro plano declarados
 - [x] Flags PendingIntent definidas
@@ -293,7 +293,7 @@ Estas limitações não afetam a funcionalidade principal e podem ser abordadas 
 
 ## 📚 Referências
 
-- [Mudanças de Comportamento Android 15](https://developer.android.com/about/versions/15/behavior-changes-15)
+- [Mudanças de Comportamento Android 9](https://developer.android.com/about/versions/pie/behavior-changes-9)
 - [Armazenamento com Escopo](https://developer.android.com/training/data-storage#scoped-storage)
 - [Serviços em Primeiro Plano](https://developer.android.com/develop/background-work/services/foreground-services)
 - [Segurança PendingIntent](https://developer.android.com/privacy-and-security/risks/pending-intent)
@@ -305,8 +305,8 @@ Estas limitações não afetam a funcionalidade principal e podem ser abordadas 
 **Versão: 0.118.0-rafacodephi**
 
 ### Adicionado
-- Suporte para Android 15 (API 35)
-- Tarefas de validação Gradle para conformidade Android 15
+- Baseline do target SDK Android 9 (API 28)
+- Tarefas de validação Gradle para conformidade do target SDK
 - Tipos de serviço em primeiro plano (dataSync)
 - Flags de mutabilidade PendingIntent
 
