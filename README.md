@@ -80,6 +80,7 @@ adb install app/build/outputs/apk/debug/termux-app_apt-android-7-debug_universal
 
 ### Documentation
 - 🔥 [**Android 16 Page Size Fix**](./ANDROID16_PAGE_SIZE_FIX.md) - **Critical fix for Android 15/16 stability**
+- 🚀 [**Boosters de Performance**](./BOOSTERS.md) - **6 tipos de boosters, detalhes técnicos, benchmarks**
 - 🚀 [**Performance Boosters Guide**](./BOOSTERS_DOCUMENTACAO.md) - **Complete guide on SIMD boosters, types, and benchmarks**
 - 📊 [**Benchmarks & Comparison**](./BENCHMARKS_COMPARISON.md) - **30+ metrics, side-by-side comparison, innovations**
 - 📄 [Android 15 Audit Report](./ANDROID15_AUDIT_REPORT.md) - Complete audit and status
@@ -87,6 +88,7 @@ adb install app/build/outputs/apk/debug/termux-app_apt-android-7-debug_universal
 - 🔧 [Troubleshooting Guide](./TROUBLESHOOTING.md) - Common issues and solutions
 - 📝 [Changes and Patch](./docs/MUDANCAS_ANDROID15.md) - Detailed changelog
 - ⚙️ [Bare-Metal Implementation](./IMPLEMENTACAO_BAREMETAL.md) - Native code optimizations
+- 📖 [Complete Documentation](./DOCUMENTACAO.md) - Full technical documentation
 
 ***
 

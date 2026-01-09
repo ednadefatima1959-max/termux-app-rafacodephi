@@ -8,9 +8,10 @@
 4. [Funcionalidades Principais](#funcionalidades-principais)
 5. [Framework RAFAELIA](#framework-rafaelia)
 6. [Implementação Bare-Metal](#implementação-bare-metal)
-7. [Compatibilidade Android 15](#compatibilidade-android-15)
-8. [Guias de Uso](#guias-de-uso)
-9. [Referências e Documentação Adicional](#referências-e-documentação-adicional)
+7. [Boosters de Performance](#boosters-de-performance)
+8. [Compatibilidade Android 15](#compatibilidade-android-15)
+9. [Guias de Uso](#guias-de-uso)
+10. [Referências e Documentação Adicional](#referências-e-documentação-adicional)
 
 ---
 
@@ -34,6 +35,7 @@
 ✅ **Framework RAFAELIA** para computação ética e coerente  
 ✅ **Implementação bare-metal** em C e Assembly  
 ✅ **Android 15 Ready** com otimizações específicas  
+✅ **Boosters de performance** com speedup médio de 2.76x  
 ✅ **Otimizações de hardware** (NEON, AVX, SSE)  
 ✅ **Zero dependências externas** no núcleo bare-metal  
 ✅ **Matemática determinística** com operações de flip matriciais  
@@ -483,6 +485,91 @@ LOCAL_CFLAGS += -msse2 -msse4.2 -mavx -ftree-vectorize
 
 ---
 
+## Boosters de Performance
+
+### Visão Geral dos Boosters
+
+Este fork inclui **6 tipos principais de boosters de performance** (otimizações de aceleração) que aceleram operações computacionais em **2.76x em média**. Boosters são implementações otimizadas que aproveitam hardware específico e algoritmos eficientes.
+
+### Tipos de Boosters Disponíveis
+
+#### 1. **Boosters SIMD** 🎯
+- **ARM NEON**: 3.8x speedup médio (ARMv7-A, ARMv8-A)
+- **x86 AVX2**: 4.1x speedup médio (256-bit)
+- **x86 SSE2/SSE4.2**: 3.4x speedup médio (128-bit)
+
+#### 2. **Boosters Bare-Metal** 🔧
+- Matemática rápida: 2.6x speedup médio
+- Zero dependências externas
+- Tamanho reduzido (~50 KB)
+
+#### 3. **Boosters de Memória** 💾
+- Cópia otimizada: 3.2x speedup
+- Preenchimento: 2.9x speedup
+- Comparação: 2.5x speedup
+
+#### 4. **Boosters Matemáticos** 🧮
+- Fast sqrt: 2.8x speedup
+- Fast rsqrt (Quake III): 3.5x speedup
+- Fast exp: 1.9x speedup
+- Fast log: 2.2x speedup
+
+#### 5. **Boosters Vetoriais** 📊
+- Produto escalar SIMD: 3.5x speedup
+- Norma L2: 3.7x speedup
+- Similaridade de cosseno: 3.8x speedup
+
+#### 6. **Boosters Matriciais** 📐
+- Multiplicação: 2.7x speedup
+- Flips (RAFAELIA): 3.0-3.2x speedup
+- Transposição: 2.8x speedup
+- Operações avançadas: 2.6-2.8x speedup
+
+### Resumo de Performance
+
+| Tipo de Booster | Operações | Speedup Médio | Melhor Caso |
+|-----------------|-----------|---------------|-------------|
+| SIMD NEON | 8 | **3.8x** | **4.5x** |
+| SIMD AVX2 | 6 | **4.1x** | **4.5x** |
+| Bare-Metal Math | 4 | **2.6x** | **3.5x** |
+| Memória | 4 | **2.9x** | **3.2x** |
+| Vetorial | 4 | **3.7x** | **3.8x** |
+| Matricial | 8 | **2.83x** | **3.24x** |
+
+**Speedup Médio Global: 2.76x**
+
+### Ativação Automática
+
+Os boosters são ativados automaticamente:
+
+1. **Detecção de arquitetura** em tempo de compilação
+2. **Detecção de SIMD** (NEON, AVX, SSE)
+3. **Seleção automática** da melhor implementação
+4. **Fallback genérico** se SIMD não disponível
+
+```java
+// Verificar boosters disponíveis
+if (BareMetal.isLoaded()) {
+    String arch = BareMetal.getArchitecture();
+    int caps = BareMetal.getCapabilities();
+    boolean hasNeon = (caps & BareMetal.CAP_NEON) != 0;
+    boolean hasAvx2 = (caps & BareMetal.CAP_AVX2) != 0;
+}
+```
+
+### Documentação Completa
+
+Para detalhes completos sobre cada tipo de booster, incluindo:
+- Implementações técnicas detalhadas
+- Código Assembly NEON/AVX
+- Benchmarks individuais por operação
+- Exemplos de uso práticos
+- Comparações arquitetura por arquitetura
+
+**Consulte: [BOOSTERS.md](./BOOSTERS.md)** - Documentação completa de boosters de performance
+
+---
+
 ## Compatibilidade Android 15
 
 ### Problemas Resolvidos
@@ -616,6 +703,8 @@ Consulte [TROUBLESHOOTING.md](TROUBLESHOOTING.md) para problemas comuns.
 | Documento | Descrição |
 |-----------|-----------|
 | [README.md](README.md) | README principal |
+| [BOOSTERS.md](BOOSTERS.md) | **Boosters de performance - detalhes e benchmarks** |
+| [BENCHMARKS_COMPARISON.md](BENCHMARKS_COMPARISON.md) | Comparação detalhada de 30+ métricas |
 | [BOOSTERS_DOCUMENTACAO.md](BOOSTERS_DOCUMENTACAO.md) | Guia completo de boosters de performance |
 | [BENCHMARKS_COMPARISON.md](BENCHMARKS_COMPARISON.md) | Benchmarks e comparação detalhada |
 | [RAFAELIA_METHODOLOGY.md](RAFAELIA_METHODOLOGY.md) | Metodologia RAFAELIA |
