@@ -385,7 +385,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             TermuxSession newTermuxSession = service.createTermuxSession(null, null, null, workingDirectory, isFailSafe, sessionName);
             if (newTermuxSession == null) {
                 Logger.logError(LOG_TAG, "Failed to create new TermuxSession");
-                Logger.showToast(mActivity, "Failed to create terminal session", true);
+                Logger.showToast(mActivity, mActivity.getString(com.termux.shared.R.string.error_failed_to_execute_termux_session_command, sessionName != null ? sessionName : "new session"), true);
                 return;
             }
 
