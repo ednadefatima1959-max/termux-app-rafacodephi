@@ -36,8 +36,11 @@ import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_ACTIVITY;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_SERVICE;
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 import com.termux.shared.termux.shell.TermuxShellManager;
+import com.termux.shared.termux.shell.TermuxQualityManager;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.shared.termux.terminal.TermuxTerminalSessionClientBase;
+import com.termux.shared.errors.Error;
+import com.termux.shared.errors.ISO9001Errno;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.notification.NotificationUtils;
 import com.termux.shared.android.PermissionUtils;
@@ -431,6 +434,15 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
 
         if (executionCommand.shellCreateMode == null)
             executionCommand.shellCreateMode = ShellCreateMode.ALWAYS.getMode();
+
+        // ISO 9001 Quality Validation: Validate execution command before processing
+        Error validationError = TermuxQualityManager.validateExecutionCommand(this, executionCommand);
+        if (validationError != null) {
+            Logger.logError(LOG_TAG, "Execution command validation failed (ISO 9001): " + validationError.getMessage());
+            executionCommand.setStateFailed(validationError);
+            TermuxPluginUtils.processPluginExecutionCommandError(this, LOG_TAG, executionCommand, false);
+            return;
+        }
 
         // Add the execution command to pending plugin execution commands list
         mShellManager.mPendingPluginExecutionCommands.add(executionCommand);
