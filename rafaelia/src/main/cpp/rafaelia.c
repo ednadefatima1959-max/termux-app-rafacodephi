@@ -39,7 +39,7 @@ Java_com_termux_rafaelia_RafaeliaUtils_memset(JNIEnv *env, jclass clazz,
 /* Mathematical operations */
 
 JNIEXPORT jfloat JNICALL
-Java_com_termux_rafaelia_RafaeliaUtils_sqrt(JNIEnv *env, jclass clazz, jfloat x) {
+Java_com_termux_rafaelia_RafaeliaUtils_sqrtNative(JNIEnv *env, jclass clazz, jfloat x) {
     (void)env;
     (void)clazz;
     if (x < 0.0f) return 0.0f;
