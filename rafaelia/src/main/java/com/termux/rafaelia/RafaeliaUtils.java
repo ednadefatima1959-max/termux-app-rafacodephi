@@ -79,10 +79,10 @@ public final class RafaeliaUtils {
      * @return Square root of x, or 0 if x < 0
      */
     public static float sqrt(float x) {
-        if (x < 0.0f) return 0.0f;
         if (NATIVE_AVAILABLE) {
             return sqrtNative(x);
         }
+        if (x < 0.0f) return 0.0f;
         return (float) Math.sqrt(x);
     }
     

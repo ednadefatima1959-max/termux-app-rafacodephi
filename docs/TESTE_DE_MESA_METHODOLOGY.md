@@ -68,7 +68,7 @@ Input: base=2.0, exp=5
 | 0    | 5      | 2.0     | 1.0    | 1          | result *= current (1*2=2) |
 | 1    | 2      | 4.0     | 2.0    | 0          | skip                      |
 | 2    | 1      | 16.0    | 2.0    | 1          | result *= current (2*16)  |
-| 3    | 0      | 256.0   | 32.0   | -          | exit loop                 |
+| 3    | 0      | -       | 32.0   | -          | exit loop                 |
 
 Expected: 32.0
 ```

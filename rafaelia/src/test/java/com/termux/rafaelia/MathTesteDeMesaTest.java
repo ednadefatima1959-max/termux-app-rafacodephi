@@ -34,21 +34,21 @@ public class MathTesteDeMesaTest {
      * | 1    | 2      | 010             | 4.0     | 2.0    | 0          | skip (bit is 0)           |
      * |      | 1      | 001             | 16.0    | 2.0    | -          | absExp >>= 1, current²    |
      * | 2    | 1      | 001             | 16.0    | 2.0    | 1          | result *= current (2*16)  |
-     * |      | 0      | 000             | 256.0   | 32.0   | -          | absExp >>= 1, current²    |
+     * |      | 0      | 000             | -       | 32.0   | -          | absExp becomes 0, loop ends |
      * | end  | 0      | 000             | -       | 32.0   | -          | exit loop (absExp == 0)   |
      * 
      * Expected: 32.0
      */
     @Test
     public void testPow_traceTable_positiveOddExponent() {
-        // ψ - Perception: Input values
+        // Input values
         float base = 2.0f;
         int exp = 5;
         
-        // ρ - Expansion: Execute computation
+        // Execute computation
         float result = RafaeliaUtils.pow(base, exp);
         
-        // Δ - Validation: Verify against trace table result
+        // Verify against trace table result
         assertEquals("pow(2, 5) should equal 32", 32.0f, result, EPSILON);
     }
     
@@ -66,7 +66,7 @@ public class MathTesteDeMesaTest {
      * | 1    | 2      | 010             | 9.0     | 1.0    | 0          | skip (bit is 0)           |
      * |      | 1      | 001             | 81.0    | 1.0    | -          | absExp >>= 1, current²    |
      * | 2    | 1      | 001             | 81.0    | 1.0    | 1          | result *= current (1*81)  |
-     * |      | 0      | 000             | 6561.0  | 81.0   | -          | absExp >>= 1, current²    |
+     * |      | 0      | 000             | -       | 81.0   | -          | absExp becomes 0, loop ends |
      * | end  | 0      | 000             | -       | 81.0   | -          | exit loop                 |
      * 
      * Expected: 81.0
@@ -89,7 +89,7 @@ public class MathTesteDeMesaTest {
      * | 0    | 2      | 10              | 2.0     | 1.0    | 0          | skip (bit is 0)           |
      * |      | 1      | 01              | 4.0     | 1.0    | -          | absExp >>= 1, current²    |
      * | 1    | 1      | 01              | 4.0     | 1.0    | 1          | result *= current (1*4=4) |
-     * |      | 0      | 00              | 16.0    | 4.0    | -          | absExp >>= 1, current²    |
+     * |      | 0      | 00              | -       | 4.0    | -          | absExp becomes 0, loop ends |
      * | end  | 0      | 00              | -       | 4.0    | -          | exit loop                 |
      * | final| -      | -               | -       | 0.25   | -          | return 1.0/4.0 = 0.25     |
      * 
@@ -106,14 +106,14 @@ public class MathTesteDeMesaTest {
      * 
      * exp = 3 = 11 in binary
      * 
-     * | Step | absExp | current   | result   | absExp & 1 | Action               |
-     * |------|--------|-----------|----------|------------|----------------------|
-     * | init | 3      | 10.0      | 1.0      | -          | initialize           |
-     * | 0    | 3      | 10.0      | 1.0      | 1          | result *= 10 = 10    |
-     * |      | 1      | 100.0     | 10.0     | -          | shift and square     |
-     * | 1    | 1      | 100.0     | 10.0     | 1          | result *= 100 = 1000 |
-     * |      | 0      | 10000.0   | 1000.0   | -          | shift and square     |
-     * | end  | 0      | -         | 1000.0   | -          | exit loop            |
+     * | Step | absExp | current   | result   | absExp & 1 | Action                               |
+     * |------|--------|-----------|----------|------------|--------------------------------------|
+     * | init | 3      | 10.0      | 1.0      | -          | initialize                           |
+     * | 0    | 3      | 10.0      | 1.0      | 1          | result *= 10 = 10                    |
+     * |      | 1      | 100.0     | 10.0     | -          | shift and square                     |
+     * | 1    | 1      | 100.0     | 10.0     | 1          | result *= 100 = 1000                 |
+     * |      | 0      | -         | 1000.0   | -          | shift, absExp == 0 so loop will end  |
+     * | end  | 0      | -         | 1000.0   | -          | exit loop                            |
      * 
      * Expected: 1000.0
      */
@@ -205,6 +205,9 @@ public class MathTesteDeMesaTest {
     public void testPow_powerOfTwo() {
         assertEquals("pow(2, 10) should be 1024", 1024.0f, RafaeliaUtils.pow(2.0f, 10), EPSILON);
         assertEquals("pow(2, 16) should be 65536", 65536.0f, RafaeliaUtils.pow(2.0f, 16), EPSILON);
+        // Use a slightly looser tolerance for larger exponents on float to allow for
+        // accumulated rounding error in the exponentiation algorithm, while still
+        // verifying that the result is numerically close to 1048576 (2^20).
         assertEquals("pow(2, 20) should be 1048576", 1048576.0f, RafaeliaUtils.pow(2.0f, 20), 1.0f);
     }
     
