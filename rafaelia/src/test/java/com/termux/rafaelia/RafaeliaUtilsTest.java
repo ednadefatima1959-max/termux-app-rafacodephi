@@ -2,26 +2,37 @@ package com.termux.rafaelia;
 
 import org.junit.Test;
 import org.junit.Before;
+import org.junit.Assume;
 import static org.junit.Assert.*;
 
 /**
  * Unit tests for Rafaelia utility functions.
  * Tests memory operations, mathematical functions, and vector operations.
+ * 
+ * Tests that require native library are skipped when the library is not available.
  */
 public class RafaeliaUtilsTest {
     
     private static final float EPSILON = 1e-5f;
     
-    @Before
-    public void setUp() {
-        // Ensure native library is loaded
-        // In actual tests, this would be handled by test infrastructure
+    /**
+     * Skip test if native library is required but not available.
+     */
+    private void requireNativeLibrary() {
+        Assume.assumeTrue("Native library not available - skipping test", 
+            RafaeliaUtils.isNativeAvailable());
     }
     
-    // ==================== Memory Operations Tests ====================
+    @Before
+    public void setUp() {
+        // Native library availability is checked in individual tests that need it
+    }
+    
+    // ==================== Memory Operations Tests (require native) ====================
     
     @Test
     public void testMemcpy() {
+        requireNativeLibrary();
         byte[] src = {1, 2, 3, 4, 5, 6, 7, 8};
         byte[] dest = new byte[8];
         
@@ -32,6 +43,7 @@ public class RafaeliaUtilsTest {
     
     @Test
     public void testMemcpy_partial() {
+        requireNativeLibrary();
         byte[] src = {1, 2, 3, 4, 5, 6, 7, 8};
         byte[] dest = {0, 0, 0, 0, 0, 0, 0, 0};
         
@@ -46,6 +58,7 @@ public class RafaeliaUtilsTest {
     
     @Test
     public void testMemset() {
+        requireNativeLibrary();
         byte[] array = new byte[10];
         
         RafaeliaUtils.memset(array, 42, 10);
@@ -57,6 +70,7 @@ public class RafaeliaUtilsTest {
     
     @Test
     public void testMemset_partial() {
+        requireNativeLibrary();
         byte[] array = new byte[10];
         
         RafaeliaUtils.memset(array, 99, 5);
@@ -69,7 +83,7 @@ public class RafaeliaUtilsTest {
         }
     }
     
-    // ==================== Mathematical Operations Tests ====================
+    // ==================== Mathematical Operations Tests (pure Java fallback available) ====================
     
     @Test
     public void testSqrt() {

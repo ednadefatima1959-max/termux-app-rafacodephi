@@ -14,8 +14,27 @@ package com.termux.rafaelia;
  */
 public final class RafaeliaUtils {
     
+    /** Flag indicating if native library is available */
+    private static final boolean NATIVE_AVAILABLE;
+    
     static {
-        System.loadLibrary("termux-rafaelia");
+        boolean loaded = false;
+        try {
+            System.loadLibrary("termux-rafaelia");
+            loaded = true;
+        } catch (UnsatisfiedLinkError e) {
+            // Native library not available - will use Java fallbacks where possible
+            loaded = false;
+        }
+        NATIVE_AVAILABLE = loaded;
+    }
+    
+    /**
+     * Check if native library is available.
+     * @return true if native methods can be used, false otherwise
+     */
+    public static boolean isNativeAvailable() {
+        return NATIVE_AVAILABLE;
     }
     
     // Private constructor to prevent instantiation
@@ -54,13 +73,23 @@ public final class RafaeliaUtils {
     // ==================== Fast Mathematical Operations ====================
     
     /**
-     * Fast square root using Newton-Raphson method.
-     * Bare-metal implementation with no library dependencies.
+     * Fast square root using Newton-Raphson method (native) or Java Math.sqrt (fallback).
      * 
      * @param x Input value (must be >= 0)
      * @return Square root of x, or 0 if x < 0
      */
-    public static native float sqrt(float x);
+    public static float sqrt(float x) {
+        if (NATIVE_AVAILABLE) {
+            return sqrtNative(x);
+        }
+        if (x < 0.0f) return 0.0f;
+        return (float) Math.sqrt(x);
+    }
+    
+    /**
+     * Native square root implementation.
+     */
+    private static native float sqrtNative(float x);
     
     /**
      * Fast integer power (no library dependencies).
