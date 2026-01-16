@@ -12,10 +12,12 @@ import com.termux.shared.shell.command.ExecutionCommand;
 import com.termux.shared.shell.command.environment.ShellEnvironmentUtils;
 import com.termux.shared.shell.command.environment.UnixShellEnvironment;
 import com.termux.shared.shell.command.result.ResultData;
+import com.termux.shared.errors.Error;
 import com.termux.shared.errors.Errno;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.shell.command.environment.IShellEnvironment;
 import com.termux.shared.shell.ShellUtils;
+import com.termux.shared.termux.shell.TermuxQualityManager;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 
@@ -92,6 +94,25 @@ public class TermuxSession {
 
         boolean isLoginShell = false;
         if (executionCommand.executable == null) {
+            if (!executionCommand.isFailsafe) {
+                Error bootstrapError = TermuxQualityManager.checkBootstrapComplete();
+                if (bootstrapError != null) {
+                    Logger.logError(LOG_TAG, "Bootstrap validation failed: " + bootstrapError.getMessage());
+                    executionCommand.setStateFailed(bootstrapError);
+                    TermuxSession.processTermuxSessionResult(null, executionCommand);
+                    return null;
+                }
+
+                Error dependencyError = TermuxQualityManager.checkDependencies(currentPackageContext,
+                    Collections.singletonList("bash"));
+                if (dependencyError != null) {
+                    Logger.logError(LOG_TAG, "Shell dependency validation failed: " + dependencyError.getMessage());
+                    executionCommand.setStateFailed(dependencyError);
+                    TermuxSession.processTermuxSessionResult(null, executionCommand);
+                    return null;
+                }
+            }
+
             if (!executionCommand.isFailsafe) {
                 for (String shellBinary : UnixShellEnvironment.LOGIN_SHELL_BINARIES) {
                     File shellFile = new File(defaultBinPath, shellBinary);
