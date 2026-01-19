@@ -36,7 +36,18 @@ readonly BUILD_TYPE="${BUILD_TYPE:-release}"  # Aspect 23: Debug vs Release buil
 readonly ENABLE_LTO="${ENABLE_LTO:-1}"        # Aspect 25: Link-time optimization
 readonly ENABLE_PROFILE="${ENABLE_PROFILE:-0}" # Aspect 13: Performance profiling
 readonly ENABLE_SANITIZERS="${ENABLE_SANITIZERS:-0}" # Aspect 6: Memory safety checks
-readonly PARALLEL_JOBS="${PARALLEL_JOBS:-$(nproc 2>/dev/null || echo 4)}" # Aspect 9: Parallel compilation
+readonly PARALLEL_JOBS_MAX=32
+PARALLEL_JOBS_RAW="${PARALLEL_JOBS:-$(nproc 2>/dev/null || echo 4)}"
+if [[ ! "${PARALLEL_JOBS_RAW}" =~ ^[0-9]+$ ]]; then
+    PARALLEL_JOBS_RAW=4
+fi
+if (( PARALLEL_JOBS_RAW < 1 )); then
+    PARALLEL_JOBS_RAW=1
+fi
+PARALLEL_JOBS="${PARALLEL_JOBS_RAW}"
+if (( PARALLEL_JOBS_RAW > PARALLEL_JOBS_MAX )); then
+    PARALLEL_JOBS="${PARALLEL_JOBS_MAX}"
+fi
 
 # Runtime variables
 BACKUP_DIR=""  # Stores backup directory path if created
@@ -179,6 +190,51 @@ validate_environment() {
             export ARCH_FLAGS=""
             ;;
     esac
+}
+
+################################################################################
+# ASPECT 4.1: Predictive Failure Guardrails - Crash and limit avoidance
+################################################################################
+preflight_guardrails() {
+    log "INFO" "Running preflight guardrails..."
+
+    ensure_safe_path "${WORKDIR}"
+
+    local workdir_parent
+    workdir_parent="$(dirname "${WORKDIR}")"
+
+    if [[ -d "${WORKDIR}" ]]; then
+        if [[ ! -w "${WORKDIR}" ]]; then
+            log "FATAL" "Work directory is not writable: ${WORKDIR}"
+            return 1
+        fi
+    else
+        if [[ ! -w "${workdir_parent}" ]]; then
+            log "FATAL" "Cannot create work directory under: ${workdir_parent}"
+            return 1
+        fi
+    fi
+
+    if (( PARALLEL_JOBS_RAW > PARALLEL_JOBS_MAX )); then
+        log "WARN" "Capping parallel jobs to ${PARALLEL_JOBS_MAX} to avoid >32 child processes"
+    fi
+
+    local max_procs
+    max_procs="$(ulimit -u 2>/dev/null || echo "")"
+    if [[ "${max_procs}" =~ ^[0-9]+$ && "${max_procs}" -gt 0 ]]; then
+        if (( PARALLEL_JOBS > max_procs )); then
+            log "WARN" "Process limit (${max_procs}) below requested parallel jobs; reducing"
+            PARALLEL_JOBS="${max_procs}"
+        fi
+    fi
+
+    if command -v df &> /dev/null; then
+        local available_kb
+        available_kb="$(df -Pk "${workdir_parent}" | awk 'NR==2 {print $4}')"
+        if [[ "${available_kb}" =~ ^[0-9]+$ && "${available_kb}" -lt 102400 ]]; then
+            log "WARN" "Low disk space detected (${available_kb} KB available)"
+        fi
+    fi
 }
 
 ################################################################################
@@ -605,9 +661,11 @@ EOF
 ################################################################################
 ensure_dependencies() {
     log "INFO" "Checking build dependencies..."
-    
+
     local missing_deps=()
-    
+    local package_manager=""
+    local sudo_prefix=""
+
     # Check for compiler
     if ! command -v clang &> /dev/null; then
         log "WARN" "Clang not found - will install"
@@ -616,28 +674,66 @@ ensure_dependencies() {
         local clang_version="$(clang --version | head -n1)"
         log "DEBUG" "Found: ${clang_version}"
     fi
-    
+
     # Install missing dependencies
     if [[ ${#missing_deps[@]} -gt 0 ]]; then
         log "INFO" "Installing dependencies: ${missing_deps[*]}"
-        
+
         # Detect package manager
         if command -v pkg &> /dev/null; then
-            pkg update -y || log "WARN" "Failed to update package database"
-            for dep in "${missing_deps[@]}"; do
-                pkg install -y "${dep}" || log "ERROR" "Failed to install ${dep}"
-            done
+            package_manager="pkg"
         elif command -v apt-get &> /dev/null; then
-            sudo apt-get update -y
-            for dep in "${missing_deps[@]}"; do
-                sudo apt-get install -y "${dep}"
-            done
+            package_manager="apt-get"
         else
             log "FATAL" "No supported package manager found (pkg, apt-get)"
             return 1
         fi
+
+        if [[ "${package_manager}" == "apt-get" ]]; then
+            if [[ "$(id -u)" -eq 0 ]]; then
+                sudo_prefix=""
+            elif command -v sudo &> /dev/null; then
+                sudo_prefix="sudo"
+            else
+                log "FATAL" "apt-get found but sudo is unavailable; run as root to install dependencies"
+                return 1
+            fi
+        fi
+
+        if [[ "${package_manager}" == "pkg" ]]; then
+            if ! pkg update -y; then
+                log "WARN" "Failed to update package database"
+            fi
+        else
+            if ! ${sudo_prefix} apt-get update -y; then
+                log "FATAL" "Failed to update package database via apt-get"
+                return 1
+            fi
+        fi
+
+        for dep in "${missing_deps[@]}"; do
+            if [[ "${package_manager}" == "pkg" ]]; then
+                if ! pkg install -y "${dep}"; then
+                    log "FATAL" "Failed to install ${dep}"
+                    return 1
+                fi
+            else
+                if ! ${sudo_prefix} apt-get install -y "${dep}"; then
+                    log "FATAL" "Failed to install ${dep}"
+                    return 1
+                fi
+            fi
+        done
+
+        # Verify dependencies after installation
+        for dep in "${missing_deps[@]}"; do
+            if ! command -v "${dep}" &> /dev/null; then
+                log "FATAL" "Dependency still missing after install: ${dep}"
+                return 1
+            fi
+        done
     fi
-    
+
     log "INFO" "All dependencies satisfied"
 }
 
@@ -702,6 +798,13 @@ handle_signal() {
     log "INFO" "Performing cleanup..."
     cleanup_on_exit
     exit 130
+}
+
+handle_error() {
+    local exit_code=$?
+    local last_command="${BASH_COMMAND}"
+    log "ERROR" "Unhandled error in command: ${last_command} (exit ${exit_code})"
+    return "${exit_code}"
 }
 
 ################################################################################
@@ -940,6 +1043,10 @@ main() {
     # Set up signal handlers (Aspect 19)
     trap 'handle_signal INT' INT
     trap 'handle_signal TERM' TERM
+    trap 'handle_signal HUP' HUP
+    trap 'handle_signal QUIT' QUIT
+    trap 'handle_signal ABRT' ABRT
+    trap 'handle_error' ERR
     trap 'cleanup_on_exit' EXIT
     
     log "INFO" "=========================================="
@@ -949,6 +1056,7 @@ main() {
     
     # Aspect 3: Input validation
     validate_environment
+    preflight_guardrails
     
     # Create directory structure
     create_directory_structure
