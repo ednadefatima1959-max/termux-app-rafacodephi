@@ -99,6 +99,12 @@ void vop_mul(const float* a, const float* b, float* r, uint32_t n) {
     }
 }
 
+void vop_scale(float* a, float s, uint32_t n) {
+    for (uint32_t i = 0; i < n; i++) {
+        a[i] *= s;
+    }
+}
+
 float vop_dot(const float* a, const float* b, uint32_t n) {
     float s = 0.0f;
     
@@ -138,16 +144,21 @@ float vop_norm(const float* a, uint32_t n) {
 /* Simple memory allocation - using stdlib for now */
 #include <stdlib.h>
 
+static inline float fm_abs(float x) {
+    return (x < 0.0f) ? -x : x;
+}
+
 mx_t* mx_create(uint32_t r, uint32_t c) {
     mx_t* m = (mx_t*)malloc(sizeof(mx_t));
     if (!m) return NULL;
     
     /* Allocate matrix data */
-    m->m = (float*)calloc(r * c, sizeof(float));
+    m->m = (float*)malloc(r * c * sizeof(float));
     if (!m->m) {
         free(m);
         return NULL;
     }
+    bmem_zero(m->m, r * c * sizeof(float));
     
     m->r = r;
     m->c = c;
@@ -190,6 +201,11 @@ void mx_transpose(const mx_t* a, mx_t* r) {
     }
 }
 
+void mx_zero(mx_t* m) {
+    if (!m || !m->m) return;
+    bmem_zero(m->m, m->r * m->c * sizeof(float));
+}
+
 /* Determinant calculation - deterministic approach using RAFAELIA method */
 float mx_det(const mx_t* m) {
     if (!m || m->r != m->c) return 0.0f;
@@ -223,10 +239,10 @@ float mx_det(const mx_t* m) {
     for (uint32_t k = 0; k < m->r; k++) {
         /* Find pivot */
         uint32_t pivot = k;
-        float max = fm_sqrt(fm_pow2(w->m[k * w->c + k])); /* abs value */
+        float max = fm_abs(w->m[k * w->c + k]);
         
         for (uint32_t i = k + 1; i < w->r; i++) {
-            float val = fm_sqrt(fm_pow2(w->m[i * w->c + k]));
+            float val = fm_abs(w->m[i * w->c + k]);
             if (val > max) {
                 max = val;
                 pivot = i;
@@ -297,7 +313,7 @@ int mx_inv(const mx_t* m, mx_t* r) {
         
         for (uint32_t i = k; i < n; i++) {
             float val = aug->m[i * aug->c + k];
-            float abs_val = (val < 0.0f) ? -val : val;
+            float abs_val = fm_abs(val);
             if (abs_val > max) {
                 max = abs_val;
                 pivot = i;
@@ -446,11 +462,10 @@ float mx_trace(const mx_t* m) {
 /* Set matrix to identity */
 void mx_identity(mx_t* m) {
     if (!m || m->r != m->c) return;
-    
+
+    mx_zero(m);
     for (uint32_t i = 0; i < m->r; i++) {
-        for (uint32_t j = 0; j < m->c; j++) {
-            m->m[i * m->c + j] = (i == j) ? 1.0f : 0.0f;
-        }
+        m->m[i * m->c + i] = 1.0f;
     }
 }
 
@@ -485,7 +500,7 @@ int mx_solve_linear(const mx_t* a, const float* b, float* x) {
         
         for (uint32_t i = k; i < n; i++) {
             float val = aug->m[i * aug->c + k];
-            float abs_val = (val < 0.0f) ? -val : val;
+            float abs_val = fm_abs(val);
             if (abs_val > max) {
                 max = abs_val;
                 pivot = i;
@@ -623,6 +638,10 @@ void* bmem_set(void* d, int v, size_t n) {
     }
     
     return d;
+}
+
+void* bmem_zero(void* d, size_t n) {
+    return bmem_set(d, 0, n);
 }
 
 int bmem_cmp(const void* a, const void* b, size_t n) {
