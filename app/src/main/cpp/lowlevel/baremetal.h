@@ -73,6 +73,11 @@ void vop_add(const float* a, const float* b, float* r, uint32_t n);
 void vop_sub(const float* a, const float* b, float* r, uint32_t n);
 void vop_mul(const float* a, const float* b, float* r, uint32_t n);
 void vop_scale(float* a, float s, uint32_t n);
+void vop_copy(const float* a, float* r, uint32_t n);
+void vop_fill(float* a, float v, uint32_t n);
+float vop_sum(const float* a, uint32_t n);
+float vop_min(const float* a, uint32_t n);
+float vop_max(const float* a, uint32_t n);
 float vop_dot(const float* a, const float* b, uint32_t n);
 float vop_norm(const float* a, uint32_t n);
 
@@ -82,6 +87,8 @@ void mx_free(mx_t* m);
 void mx_mul(const mx_t* a, const mx_t* b, mx_t* r);
 void mx_transpose(const mx_t* a, mx_t* r);
 void mx_zero(mx_t* m);
+void mx_copy(const mx_t* a, mx_t* r);
+void mx_fill(mx_t* m, float v);
 float mx_det(const mx_t* m);
 int mx_inv(const mx_t* m, mx_t* r);
 

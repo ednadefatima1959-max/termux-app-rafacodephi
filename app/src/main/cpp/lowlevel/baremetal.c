@@ -105,6 +105,45 @@ void vop_scale(float* a, float s, uint32_t n) {
     }
 }
 
+void vop_copy(const float* a, float* r, uint32_t n) {
+    if (!a || !r) return;
+    bmem_cpy(r, a, n * sizeof(float));
+}
+
+void vop_fill(float* a, float v, uint32_t n) {
+    if (!a) return;
+    for (uint32_t i = 0; i < n; i++) {
+        a[i] = v;
+    }
+}
+
+float vop_sum(const float* a, uint32_t n) {
+    if (!a) return 0.0f;
+    float s = 0.0f;
+    for (uint32_t i = 0; i < n; i++) {
+        s += a[i];
+    }
+    return s;
+}
+
+float vop_min(const float* a, uint32_t n) {
+    if (!a || n == 0) return 0.0f;
+    float v = a[0];
+    for (uint32_t i = 1; i < n; i++) {
+        if (a[i] < v) v = a[i];
+    }
+    return v;
+}
+
+float vop_max(const float* a, uint32_t n) {
+    if (!a || n == 0) return 0.0f;
+    float v = a[0];
+    for (uint32_t i = 1; i < n; i++) {
+        if (a[i] > v) v = a[i];
+    }
+    return v;
+}
+
 float vop_dot(const float* a, const float* b, uint32_t n) {
     float s = 0.0f;
     
@@ -204,6 +243,20 @@ void mx_transpose(const mx_t* a, mx_t* r) {
 void mx_zero(mx_t* m) {
     if (!m || !m->m) return;
     bmem_zero(m->m, m->r * m->c * sizeof(float));
+}
+
+void mx_copy(const mx_t* a, mx_t* r) {
+    if (!a || !r) return;
+    if (a->r != r->r || a->c != r->c) return;
+    bmem_cpy(r->m, a->m, a->r * a->c * sizeof(float));
+}
+
+void mx_fill(mx_t* m, float v) {
+    if (!m || !m->m) return;
+    uint32_t n = m->r * m->c;
+    for (uint32_t i = 0; i < n; i++) {
+        m->m[i] = v;
+    }
 }
 
 /* Determinant calculation - deterministic approach using RAFAELIA method */
