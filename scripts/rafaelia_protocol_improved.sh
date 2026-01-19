@@ -36,7 +36,18 @@ readonly BUILD_TYPE="${BUILD_TYPE:-release}"  # Aspect 23: Debug vs Release buil
 readonly ENABLE_LTO="${ENABLE_LTO:-1}"        # Aspect 25: Link-time optimization
 readonly ENABLE_PROFILE="${ENABLE_PROFILE:-0}" # Aspect 13: Performance profiling
 readonly ENABLE_SANITIZERS="${ENABLE_SANITIZERS:-0}" # Aspect 6: Memory safety checks
-readonly PARALLEL_JOBS="${PARALLEL_JOBS:-$(nproc 2>/dev/null || echo 4)}" # Aspect 9: Parallel compilation
+readonly PARALLEL_JOBS_MAX=32
+PARALLEL_JOBS_RAW="${PARALLEL_JOBS:-$(nproc 2>/dev/null || echo 4)}"
+if [[ ! "${PARALLEL_JOBS_RAW}" =~ ^[0-9]+$ ]]; then
+    PARALLEL_JOBS_RAW=4
+fi
+if (( PARALLEL_JOBS_RAW < 1 )); then
+    PARALLEL_JOBS_RAW=1
+fi
+PARALLEL_JOBS="${PARALLEL_JOBS_RAW}"
+if (( PARALLEL_JOBS_RAW > PARALLEL_JOBS_MAX )); then
+    PARALLEL_JOBS="${PARALLEL_JOBS_MAX}"
+fi
 
 # Runtime variables
 BACKUP_DIR=""  # Stores backup directory path if created
@@ -179,6 +190,51 @@ validate_environment() {
             export ARCH_FLAGS=""
             ;;
     esac
+}
+
+################################################################################
+# ASPECT 4.1: Predictive Failure Guardrails - Crash and limit avoidance
+################################################################################
+preflight_guardrails() {
+    log "INFO" "Running preflight guardrails..."
+
+    ensure_safe_path "${WORKDIR}"
+
+    local workdir_parent
+    workdir_parent="$(dirname "${WORKDIR}")"
+
+    if [[ -d "${WORKDIR}" ]]; then
+        if [[ ! -w "${WORKDIR}" ]]; then
+            log "FATAL" "Work directory is not writable: ${WORKDIR}"
+            return 1
+        fi
+    else
+        if [[ ! -w "${workdir_parent}" ]]; then
+            log "FATAL" "Cannot create work directory under: ${workdir_parent}"
+            return 1
+        fi
+    fi
+
+    if (( PARALLEL_JOBS_RAW > PARALLEL_JOBS_MAX )); then
+        log "WARN" "Capping parallel jobs to ${PARALLEL_JOBS_MAX} to avoid >32 child processes"
+    fi
+
+    local max_procs
+    max_procs="$(ulimit -u 2>/dev/null || echo "")"
+    if [[ "${max_procs}" =~ ^[0-9]+$ && "${max_procs}" -gt 0 ]]; then
+        if (( PARALLEL_JOBS > max_procs )); then
+            log "WARN" "Process limit (${max_procs}) below requested parallel jobs; reducing"
+            PARALLEL_JOBS="${max_procs}"
+        fi
+    fi
+
+    if command -v df &> /dev/null; then
+        local available_kb
+        available_kb="$(df -Pk "${workdir_parent}" | awk 'NR==2 {print $4}')"
+        if [[ "${available_kb}" =~ ^[0-9]+$ && "${available_kb}" -lt 102400 ]]; then
+            log "WARN" "Low disk space detected (${available_kb} KB available)"
+        fi
+    fi
 }
 
 ################################################################################
@@ -744,6 +800,13 @@ handle_signal() {
     exit 130
 }
 
+handle_error() {
+    local exit_code=$?
+    local last_command="${BASH_COMMAND}"
+    log "ERROR" "Unhandled error in command: ${last_command} (exit ${exit_code})"
+    return "${exit_code}"
+}
+
 ################################################################################
 # ASPECT 9: Parallel Compilation Support - Multi-core builds
 ################################################################################
@@ -980,6 +1043,10 @@ main() {
     # Set up signal handlers (Aspect 19)
     trap 'handle_signal INT' INT
     trap 'handle_signal TERM' TERM
+    trap 'handle_signal HUP' HUP
+    trap 'handle_signal QUIT' QUIT
+    trap 'handle_signal ABRT' ABRT
+    trap 'handle_error' ERR
     trap 'cleanup_on_exit' EXIT
     
     log "INFO" "=========================================="
@@ -989,6 +1056,7 @@ main() {
     
     # Aspect 3: Input validation
     validate_environment
+    preflight_guardrails
     
     # Create directory structure
     create_directory_structure
