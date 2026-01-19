@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #define RMR_HASH_INIT 0x811c9dc5u
 #define RMR_HASH_PRIME 0x01000193u
@@ -51,6 +52,33 @@ static void rmr_flip_f32(float *p, uint32_t n) {
         ++i;
         --j;
     }
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_termux_rmr_RmrCore_nativeNormalizeTag(JNIEnv *e, jclass c, jstring s) {
+    (void)c;
+    if (s == NULL) return (*e)->NewStringUTF(e, "");
+    const char *p = (*e)->GetStringUTFChars(e, s, 0);
+    if (p == NULL) return (*e)->NewStringUTF(e, "");
+    jsize n = (*e)->GetStringUTFLength(e, s);
+    char *b = (char *) malloc((size_t) n + 1u);
+    if (b == NULL) {
+        (*e)->ReleaseStringUTFChars(e, s, p);
+        return (*e)->NewStringUTF(e, "");
+    }
+    for (jsize i = 0; i < n; ++i) {
+        char ch = p[i];
+        if (ch >= 'a' && ch <= 'z') {
+            b[i] = (char) (ch - 32);
+        } else {
+            b[i] = ch;
+        }
+    }
+    b[n] = '\0';
+    (*e)->ReleaseStringUTFChars(e, s, p);
+    jstring out = (*e)->NewStringUTF(e, b);
+    free(b);
+    return out;
 }
 
 JNIEXPORT jint JNICALL

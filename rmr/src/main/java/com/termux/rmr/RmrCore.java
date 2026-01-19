@@ -13,6 +13,8 @@ public final class RmrCore {
         throw new IllegalStateException("Utility class");
     }
 
+    public static native String nativeNormalizeTag(String tag);
+
     public static native int nativeClamp(int v, int lo, int hi);
 
     public static native int nativeStableHash(String s);
