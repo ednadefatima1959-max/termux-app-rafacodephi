@@ -342,6 +342,51 @@ preflight_guardrails() {
 }
 
 ################################################################################
+# ASPECT 4.1: Predictive Failure Guardrails - Crash and limit avoidance
+################################################################################
+preflight_guardrails() {
+    log "INFO" "Running preflight guardrails..."
+
+    ensure_safe_path "${WORKDIR}"
+
+    local workdir_parent
+    workdir_parent="$(dirname "${WORKDIR}")"
+
+    if [[ -d "${WORKDIR}" ]]; then
+        if [[ ! -w "${WORKDIR}" ]]; then
+            log "FATAL" "Work directory is not writable: ${WORKDIR}"
+            return 1
+        fi
+    else
+        if [[ ! -w "${workdir_parent}" ]]; then
+            log "FATAL" "Cannot create work directory under: ${workdir_parent}"
+            return 1
+        fi
+    fi
+
+    if (( PARALLEL_JOBS_RAW > PARALLEL_JOBS_MAX )); then
+        log "WARN" "Capping parallel jobs to ${PARALLEL_JOBS_MAX} to avoid >32 child processes"
+    fi
+
+    local max_procs
+    max_procs="$(ulimit -u 2>/dev/null || echo "")"
+    if [[ "${max_procs}" =~ ^[0-9]+$ && "${max_procs}" -gt 0 ]]; then
+        if (( PARALLEL_JOBS > max_procs )); then
+            log "WARN" "Process limit (${max_procs}) below requested parallel jobs; reducing"
+            PARALLEL_JOBS="${max_procs}"
+        fi
+    fi
+
+    if command -v df &> /dev/null; then
+        local available_kb
+        available_kb="$(df -Pk "${workdir_parent}" | awk 'NR==2 {print $4}')"
+        if [[ "${available_kb}" =~ ^[0-9]+$ && "${available_kb}" -lt 102400 ]]; then
+            log "WARN" "Low disk space detected (${available_kb} KB available)"
+        fi
+    fi
+}
+
+################################################################################
 # ASPECT 5: Modular Function Design - Single Responsibility Principle
 ################################################################################
 create_directory_structure() {
