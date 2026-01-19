@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #define RMR_HASH_INIT 0x811c9dc5u
 #define RMR_HASH_PRIME 0x01000193u
@@ -10,6 +11,18 @@ static inline uint32_t rmr_flip_u32(uint32_t v) {
            ((v & 0x0000ff00u) << 8) |
            ((v & 0x00ff0000u) >> 8) |
            ((v & 0xff000000u) >> 24);
+}
+
+static inline uint32_t rmr_transmute_u32(uint32_t v) {
+#if defined(__aarch64__) || defined(__arm__)
+    __asm__ __volatile__("rev %0, %0" : "+r"(v));
+    return v;
+#else
+    return ((v & 0x000000ffu) << 24) |
+           ((v & 0x0000ff00u) << 8) |
+           ((v & 0x00ff0000u) >> 8) |
+           ((v & 0xff000000u) >> 24);
+#endif
 }
 
 static inline int rmr_clamp_i32(int v, int lo, int hi) {
@@ -41,6 +54,33 @@ static void rmr_flip_f32(float *p, uint32_t n) {
     }
 }
 
+JNIEXPORT jstring JNICALL
+Java_com_termux_rmr_RmrCore_nativeNormalizeTag(JNIEnv *e, jclass c, jstring s) {
+    (void)c;
+    if (s == NULL) return (*e)->NewStringUTF(e, "");
+    const char *p = (*e)->GetStringUTFChars(e, s, 0);
+    if (p == NULL) return (*e)->NewStringUTF(e, "");
+    jsize n = (*e)->GetStringUTFLength(e, s);
+    char *b = (char *) malloc((size_t) n + 1u);
+    if (b == NULL) {
+        (*e)->ReleaseStringUTFChars(e, s, p);
+        return (*e)->NewStringUTF(e, "");
+    }
+    for (jsize i = 0; i < n; ++i) {
+        char ch = p[i];
+        if (ch >= 'a' && ch <= 'z') {
+            b[i] = (char) (ch - 32);
+        } else {
+            b[i] = ch;
+        }
+    }
+    b[n] = '\0';
+    (*e)->ReleaseStringUTFChars(e, s, p);
+    jstring out = (*e)->NewStringUTF(e, b);
+    free(b);
+    return out;
+}
+
 JNIEXPORT jint JNICALL
 Java_com_termux_rmr_RmrCore_nativeClamp(JNIEnv *e, jclass c, jint v, jint lo, jint hi) {
     (void)e;
@@ -56,6 +96,13 @@ Java_com_termux_rmr_RmrCore_nativeStableHash(JNIEnv *e, jclass c, jstring s) {
     uint32_t h = rmr_hash_bytes((const uint8_t *) p, (uint32_t) (*e)->GetStringUTFLength(e, s));
     (*e)->ReleaseStringUTFChars(e, s, p);
     return (jint) rmr_flip_u32(h);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_termux_rmr_RmrCore_nativeTransmuteU32(JNIEnv *e, jclass c, jint v) {
+    (void)e;
+    (void)c;
+    return (jint) rmr_transmute_u32((uint32_t) v);
 }
 
 JNIEXPORT void JNICALL
