@@ -22,4 +22,11 @@ public final class RmrCore {
     public static native int nativeTransmuteU32(int v);
 
     public static native void nativeFlipInPlace(float[] a);
+
+    public static String normalizeTag(String tag) {
+        if (tag == null) return "";
+        String t = tag.trim();
+        if (t.isEmpty()) return "";
+        return t.toUpperCase();
+    }
 }
