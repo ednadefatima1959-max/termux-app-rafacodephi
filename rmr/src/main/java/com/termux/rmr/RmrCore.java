@@ -17,6 +17,8 @@ public final class RmrCore {
 
     public static native int nativeStableHash(String s);
 
+    public static native int nativeTransmuteU32(int v);
+
     public static native void nativeFlipInPlace(float[] a);
 
     public static String normalizeTag(String tag) {

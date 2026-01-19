@@ -12,6 +12,18 @@ static inline uint32_t rmr_flip_u32(uint32_t v) {
            ((v & 0xff000000u) >> 24);
 }
 
+static inline uint32_t rmr_transmute_u32(uint32_t v) {
+#if defined(__aarch64__) || defined(__arm__)
+    __asm__ __volatile__("rev %0, %0" : "+r"(v));
+    return v;
+#else
+    return ((v & 0x000000ffu) << 24) |
+           ((v & 0x0000ff00u) << 8) |
+           ((v & 0x00ff0000u) >> 8) |
+           ((v & 0xff000000u) >> 24);
+#endif
+}
+
 static inline int rmr_clamp_i32(int v, int lo, int hi) {
     if (lo > hi) return v;
     if (v < lo) return lo;
@@ -56,6 +68,13 @@ Java_com_termux_rmr_RmrCore_nativeStableHash(JNIEnv *e, jclass c, jstring s) {
     uint32_t h = rmr_hash_bytes((const uint8_t *) p, (uint32_t) (*e)->GetStringUTFLength(e, s));
     (*e)->ReleaseStringUTFChars(e, s, p);
     return (jint) rmr_flip_u32(h);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_termux_rmr_RmrCore_nativeTransmuteU32(JNIEnv *e, jclass c, jint v) {
+    (void)e;
+    (void)c;
+    return (jint) rmr_transmute_u32((uint32_t) v);
 }
 
 JNIEXPORT void JNICALL
