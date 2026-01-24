@@ -97,6 +97,7 @@ Este documento serve como índice mestre de toda a documentação do projeto Ter
 | [docs/TESTE_DE_MESA_METHODOLOGY.md](docs/TESTE_DE_MESA_METHODOLOGY.md) | Metodologia teste de mesa | Acadêmicos |
 | [docs/RAFAELIA_PROTOCOL_IMPROVEMENTS.md](docs/RAFAELIA_PROTOCOL_IMPROVEMENTS.md) | Melhorias do protocolo | Desenvolvedores |
 | [docs/IMPLEMENTATION_SUMMARY_RAFAELIA_IMPROVEMENTS.md](docs/IMPLEMENTATION_SUMMARY_RAFAELIA_IMPROVEMENTS.md) | Resumo de melhorias | Desenvolvedores |
+| [docs/DEPENDENCIAS_TOTAIS.md](docs/DEPENDENCIAS_TOTAIS.md) | Inventário completo de dependências e repositórios | Desenvolvedores |
 
 ### Subdiretório `/docs/rafaelia/`
 
