@@ -16,4 +16,4 @@ RMR is a low-level module focused on deterministic helpers implemented in C with
 
 ## Reference
 
-- https://github.com/termux/termux-packages
+- `qemu_rafaelia/termux-packages-README.md`

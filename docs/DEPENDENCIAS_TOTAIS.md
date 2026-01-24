@@ -175,9 +175,9 @@ testImplementation "junit:junit:4.13.2"
 Os repositórios externos **explicitamente referenciados** pela documentação principal do projeto incluem:
 
 - **Termux App (upstream)**: https://github.com/termux/termux-app
-- **Termux Packages (bootstrap/pacotes)**: https://github.com/termux/termux-packages
-- **Termux:API**: https://github.com/termux/termux-api
-- **Termux:Boot**: https://github.com/termux/termux-boot
+- **Termux Packages (bootstrap/pacotes)**: `qemu_rafaelia/termux-packages-README.md`
+- **Termux:API**: `androidx_rmr/termux-api-README.md`
+- **Termux:Boot**: `androidx_rmr/termux-boot-README.md`
 - **Termux:Float**: https://github.com/termux/termux-float
 - **Termux:Styling**: https://github.com/termux/termux-styling
 - **Termux:Tasker**: https://github.com/termux/termux-tasker
