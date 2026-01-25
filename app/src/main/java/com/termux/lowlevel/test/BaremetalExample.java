@@ -113,21 +113,25 @@ public class BaremetalExample {
         Av.close();
         
         // Transpose (diagonal flip)
-        BareMetal.Matrix At = A.transpose();
+        BareMetal.Matrix At = new BareMetal.Matrix(3, 3);
+        A.transposeInto(At);
         System.out.println("\nTranspose computed");
         System.out.println("Det of transpose: " + At.determinant());
         
         // Matrix multiplication
-        BareMetal.Matrix AAt = A.multiply(At);
+        BareMetal.Matrix AAt = new BareMetal.Matrix(3, 3);
+        A.multiplyInto(At, AAt);
         System.out.println("\nA × A^T computed");
         System.out.println("Det(A × A^T): " + AAt.determinant());
         
         // Matrix addition and subtraction
-        BareMetal.Matrix sum = A.add(I);
+        BareMetal.Matrix sum = new BareMetal.Matrix(3, 3);
+        A.addInto(I, sum);
         System.out.println("\nA + I computed");
         System.out.println("Trace(A + I): " + sum.trace());
         
-        BareMetal.Matrix diff = A.subtract(I);
+        BareMetal.Matrix diff = new BareMetal.Matrix(3, 3);
+        A.subtractInto(I, diff);
         System.out.println("A - I computed");
         System.out.println("Trace(A - I): " + diff.trace());
         
@@ -140,26 +144,28 @@ public class BaremetalExample {
         System.out.println("Expected: " + (8 * A.determinant()));
         
         // Matrix inversion
-        BareMetal.Matrix Ainv = A.invert();
-        if (Ainv != null) {
+        BareMetal.Matrix Ainv = new BareMetal.Matrix(3, 3);
+        if (A.invertInto(Ainv)) {
             System.out.println("\nA^-1 computed");
             System.out.println("Det(A^-1): " + Ainv.determinant());
             System.out.println("Expected: " + (1.0f / A.determinant()));
             
             // Verify A × A^-1 ≈ I
-            BareMetal.Matrix verify = A.multiply(Ainv);
+            BareMetal.Matrix verify = new BareMetal.Matrix(3, 3);
+            A.multiplyInto(Ainv, verify);
             System.out.println("A × A^-1 computed (should be ≈ I)");
             System.out.println("Trace(A × A^-1): " + verify.trace() + " (expected: 3.0)");
             verify.close();
             Ainv.close();
         } else {
             System.out.println("\nMatrix is singular (cannot invert)");
+            Ainv.close();
         }
         
         // Solve linear system Ax = b
         float[] b = {6.0f, 11.0f, 9.0f};
-        float[] x = A.solve(b);
-        if (x != null) {
+        float[] x = new float[3];
+        if (A.solveInto(b, x)) {
             System.out.println("\nSolved Ax = b");
             System.out.print("Solution x = [");
             for (int i = 0; i < x.length; i++) {
@@ -170,7 +176,8 @@ public class BaremetalExample {
             
             // Verify solution
             float[] Ax = new float[3];
-            float[] dataAArray = A.getData();
+            float[] dataAArray = new float[9];
+            A.getDataInto(dataAArray);
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < 3; j++) {
                     Ax[i] += dataAArray[i * 3 + j] * x[j];

@@ -26,39 +26,152 @@ public class InternalPrograms {
          * @param height Image height
          */
         public static void flipHorizontal(float[] imageData, int width, int height) {
+            flipHorizontal(imageData, width, height, imageData);
+        }
+
+        /**
+         * Apply horizontal flip to image represented as matrix into an output buffer.
+         * @param imageData Image pixels as flat array
+         * @param width Image width
+         * @param height Image height
+         * @param output Output buffer (may be same as input)
+         */
+        public static void flipHorizontal(float[] imageData, int width, int height, float[] output) {
+            int size = width * height;
+            if (imageData.length < size || output.length < size) {
+                throw new IllegalArgumentException("Image buffer too small");
+            }
+
             if (!BareMetal.isLoaded()) {
-                Log.e(TAG, "BareMetal not loaded");
+                if (output == imageData) {
+                    for (int row = 0; row < height; row++) {
+                        int base = row * width;
+                        int left = base;
+                        int right = base + width - 1;
+                        while (left < right) {
+                            float tmp = imageData[left];
+                            imageData[left] = imageData[right];
+                            imageData[right] = tmp;
+                            left++;
+                            right--;
+                        }
+                    }
+                } else {
+                    for (int row = 0; row < height; row++) {
+                        int base = row * width;
+                        for (int col = 0; col < width; col++) {
+                            output[base + col] = imageData[base + (width - 1 - col)];
+                        }
+                    }
+                }
                 return;
             }
-            
+
             BareMetal.Matrix m = new BareMetal.Matrix(height, width);
-            // Load image data into matrix
-            // Apply flip
-            m.flipHorizontal();
-            // Extract back to array
-            m.close();
+            try {
+                m.setData(imageData);
+                m.flipHorizontal();
+                m.getDataInto(output);
+            } finally {
+                m.close();
+            }
         }
         
         /**
          * Apply vertical flip
          */
         public static void flipVertical(float[] imageData, int width, int height) {
-            if (!BareMetal.isLoaded()) return;
-            
+            flipVertical(imageData, width, height, imageData);
+        }
+
+        /**
+         * Apply vertical flip into an output buffer.
+         */
+        public static void flipVertical(float[] imageData, int width, int height, float[] output) {
+            int size = width * height;
+            if (imageData.length < size || output.length < size) {
+                throw new IllegalArgumentException("Image buffer too small");
+            }
+
+            if (!BareMetal.isLoaded()) {
+                if (output == imageData) {
+                    for (int row = 0; row < height / 2; row++) {
+                        int topBase = row * width;
+                        int bottomBase = (height - 1 - row) * width;
+                        for (int col = 0; col < width; col++) {
+                            float tmp = imageData[topBase + col];
+                            imageData[topBase + col] = imageData[bottomBase + col];
+                            imageData[bottomBase + col] = tmp;
+                        }
+                    }
+                } else {
+                    for (int row = 0; row < height; row++) {
+                        int srcBase = (height - 1 - row) * width;
+                        int dstBase = row * width;
+                        System.arraycopy(imageData, srcBase, output, dstBase, width);
+                    }
+                }
+                return;
+            }
+
             BareMetal.Matrix m = new BareMetal.Matrix(height, width);
-            m.flipVertical();
-            m.close();
+            try {
+                m.setData(imageData);
+                m.flipVertical();
+                m.getDataInto(output);
+            } finally {
+                m.close();
+            }
         }
         
         /**
          * Apply diagonal flip (transpose)
          */
         public static void transpose(float[] imageData, int width, int height) {
-            if (!BareMetal.isLoaded()) return;
-            
+            transpose(imageData, width, height, imageData);
+        }
+
+        /**
+         * Apply diagonal flip (transpose) into an output buffer.
+         */
+        public static void transpose(float[] imageData, int width, int height, float[] output) {
+            int size = width * height;
+            if (imageData.length < size || output.length < size) {
+                throw new IllegalArgumentException("Image buffer too small");
+            }
+
+            if (!BareMetal.isLoaded()) {
+                if (output == imageData) {
+                    if (width != height) {
+                        throw new IllegalArgumentException("In-place transpose requires a square image");
+                    }
+                    for (int row = 0; row < height; row++) {
+                        for (int col = row + 1; col < width; col++) {
+                            int idx1 = row * width + col;
+                            int idx2 = col * width + row;
+                            float tmp = imageData[idx1];
+                            imageData[idx1] = imageData[idx2];
+                            imageData[idx2] = tmp;
+                        }
+                    }
+                } else {
+                    for (int row = 0; row < height; row++) {
+                        for (int col = 0; col < width; col++) {
+                            output[col * height + row] = imageData[row * width + col];
+                        }
+                    }
+                }
+                return;
+            }
+
             BareMetal.Matrix m = new BareMetal.Matrix(height, width);
-            m.flipDiagonal();
-            m.close();
+            try {
+                m.setData(imageData);
+                m.flipDiagonal();
+                m.getDataInto(output);
+            } finally {
+                m.close();
+            }
         }
     }
     
@@ -213,9 +326,30 @@ public class InternalPrograms {
             // Apply flip operations for solving
             // This is a simplified demonstration
             a.flipDiagonal();  // Transpose
-            BareMetal.Matrix result = a.multiply(b);
-            
+            BareMetal.Matrix result = new BareMetal.Matrix(a.getRows(), b.getCols());
+            a.multiplyInto(b, result);
             return result;
+        }
+
+        /**
+         * Solve matrix equation using flip operations into an existing output matrix.
+         * Implements deterministic mathematical approach without allocations.
+         */
+        public static void solveInto(BareMetal.Matrix a, BareMetal.Matrix b, BareMetal.Matrix output) {
+            if (!BareMetal.isLoaded()) {
+                throw new UnsupportedOperationException("BareMetal not loaded");
+            }
+
+            // Check determinant
+            float det = a.determinant();
+            if (Math.abs(det) < 1e-6f) {
+                throw new IllegalArgumentException("Matrix is singular (determinant ≈ 0)");
+            }
+
+            // Apply flip operations for solving
+            // This is a simplified demonstration
+            a.flipDiagonal();  // Transpose
+            a.multiplyInto(b, output);
         }
     }
     
