@@ -72,7 +72,7 @@ awk -v map_file="$MAP_FILE" -v now="$NOW" '
     if (commit == 0) {
       print "Nenhum commit BitRAF encontrado em:" >> map_file;
       print "  " map_file >> map_file;
-      next;
+      exit;
     }
 
     print "Total de commits BitRAF: " commit >> map_file;
