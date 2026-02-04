@@ -292,14 +292,8 @@ public final class TerminalBuffer {
                 } else {
                     int currentOldColForScan = 0;
                     for (int i = 0; i < oldLine.getSpaceUsed(); ) {
-                        char c = oldLine.mText[i];
-                        int codePoint = c;
-                        int charCount = 1;
-                        if (Character.isHighSurrogate(c) && i + 1 < oldLine.getSpaceUsed()
-                            && Character.isLowSurrogate(oldLine.mText[i + 1])) {
-                            codePoint = Character.toCodePoint(c, oldLine.mText[i + 1]);
-                            charCount = 2;
-                        }
+                        int codePoint = WcWidth.codePointAt(oldLine.mText, i, oldLine.getSpaceUsed());
+                        int charCount = WcWidth.charCount(oldLine.mText, i, oldLine.getSpaceUsed());
                         int displayWidth = WcWidth.width(codePoint);
                         int styleColumn = (displayWidth == 0 && currentOldColForScan > 0)
                             ? currentOldColForScan - 1
@@ -318,10 +312,10 @@ public final class TerminalBuffer {
 
                 int currentOldCol = 0;
                 long styleAtCol = 0;
-                for (int i = 0; i < lastNonSpaceIndex; i++) {
+                for (int i = 0; i < lastNonSpaceIndex; ) {
                     // Note that looping over java character, not cells.
-                    char c = oldLine.mText[i];
-                    int codePoint = (Character.isHighSurrogate(c)) ? Character.toCodePoint(c, oldLine.mText[++i]) : c;
+                    int codePoint = WcWidth.codePointAt(oldLine.mText, i, lastNonSpaceIndex);
+                    int charCount = WcWidth.charCount(oldLine.mText, i, lastNonSpaceIndex);
                     int displayWidth = WcWidth.width(codePoint);
                     // Use the last style if this is a zero-width character:
                     if (displayWidth > 0) styleAtCol = oldLine.getStyle(currentOldCol);
@@ -352,6 +346,7 @@ public final class TerminalBuffer {
                         currentOutputExternalColumn += displayWidth;
                         if (justToCursor && newCursorPlaced) break;
                     }
+                    i += charCount;
                 }
                 // Old row has been copied. Check if we need to insert newline if old line was not wrapping:
                 if (externalOldRow != (oldScreenRows - 1) && !oldLine.mLineWrap) {
