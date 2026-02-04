@@ -16,6 +16,7 @@ import com.termux.shared.errors.Error;
 import com.termux.shared.errors.FunctionErrno;
 
 import org.apache.commons.io.filefilter.AgeFileFilter;
+import org.apache.commons.io.filefilter.FalseFileFilter;
 import org.apache.commons.io.filefilter.IOFileFilter;
 
 import java.io.BufferedReader;
@@ -1488,8 +1489,9 @@ public class FileUtils {
             Calendar calendar = Calendar.getInstance();
             calendar.add(Calendar.DATE, -(days));
             // AgeFileFilter seems to apply to symlink destination timestamp instead of symlink file itself
+            IOFileFilter dirFilterToUse = dirFilter == null ? FalseFileFilter.INSTANCE : dirFilter;
             Iterator<File> filesToDelete =
-                org.apache.commons.io.FileUtils.iterateFiles(file, new AgeFileFilter(calendar.getTime()), dirFilter);
+                org.apache.commons.io.FileUtils.iterateFiles(file, new AgeFileFilter(calendar.getTime()), dirFilterToUse);
             while (filesToDelete.hasNext()) {
                 File subFile = filesToDelete.next();
                 error = deleteFile(label + " directory sub", subFile.getAbsolutePath(), true, true, allowedFileTypeFlags);
