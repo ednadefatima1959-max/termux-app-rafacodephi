@@ -66,9 +66,11 @@ public final class TerminalRow {
         boolean startingFromSecondHalfOfWideChar = (sourceX1 > 0 && line.wideDisplayCharacterStartingAt(sourceX1 - 1));
         final char[] sourceChars = (this == line) ? Arrays.copyOf(line.mText, line.mText.length) : line.mText;
         int latestNonCombiningWidth = 0;
-        for (int i = x1; i < x2; i++) {
-            char sourceChar = sourceChars[i];
-            int codePoint = Character.isHighSurrogate(sourceChar) ? Character.toCodePoint(sourceChar, sourceChars[++i]) : sourceChar;
+        int limit = Math.min(x2, sourceChars.length);
+        for (int i = x1; i < limit; ) {
+            int codePoint = WcWidth.codePointAt(sourceChars, i, limit);
+            int charCount = WcWidth.charCount(sourceChars, i, limit);
+            i += charCount;
             if (startingFromSecondHalfOfWideChar) {
                 // Just treat copying second half of wide char as copying whitespace.
                 codePoint = ' ';
@@ -96,23 +98,19 @@ public final class TerminalRow {
         int currentCharIndex = 0;
         while (currentCharIndex < mSpaceUsed) {
             int newCharIndex = currentCharIndex;
-            char c = mText[newCharIndex++]; // cci=1, cci=2
-            boolean isHigh = Character.isHighSurrogate(c);
-            int codePoint = isHigh ? Character.toCodePoint(c, mText[newCharIndex++]) : c;
+            int codePoint = WcWidth.codePointAt(mText, newCharIndex, mSpaceUsed);
+            int charCount = WcWidth.charCount(mText, newCharIndex, mSpaceUsed);
+            newCharIndex += charCount;
             int wcwidth = WcWidth.width(codePoint); // 1, 2
             if (wcwidth > 0) {
                 currentColumn += wcwidth;
                 if (currentColumn == column) {
                     while (newCharIndex < mSpaceUsed) {
                         // Skip combining chars.
-                        if (Character.isHighSurrogate(mText[newCharIndex])) {
-                            if (WcWidth.width(Character.toCodePoint(mText[newCharIndex], mText[newCharIndex + 1])) <= 0) {
-                                newCharIndex += 2;
-                            } else {
-                                break;
-                            }
-                        } else if (WcWidth.width(mText[newCharIndex]) <= 0) {
-                            newCharIndex++;
+                        int combiningCodePoint = WcWidth.codePointAt(mText, newCharIndex, mSpaceUsed);
+                        int combiningCharCount = WcWidth.charCount(mText, newCharIndex, mSpaceUsed);
+                        if (WcWidth.width(combiningCodePoint) <= 0) {
+                            newCharIndex += combiningCharCount;
                         } else {
                             break;
                         }
@@ -131,8 +129,9 @@ public final class TerminalRow {
 
     private boolean wideDisplayCharacterStartingAt(int column) {
         for (int currentCharIndex = 0, currentColumn = 0; currentCharIndex < mSpaceUsed; ) {
-            char c = mText[currentCharIndex++];
-            int codePoint = Character.isHighSurrogate(c) ? Character.toCodePoint(c, mText[currentCharIndex++]) : c;
+            int codePoint = WcWidth.codePointAt(mText, currentCharIndex, mSpaceUsed);
+            int charCount = WcWidth.charCount(mText, currentCharIndex, mSpaceUsed);
+            currentCharIndex += charCount;
             int wcwidth = WcWidth.width(codePoint);
             if (wcwidth > 0) {
                 if (currentColumn == column && wcwidth == 2) return true;
@@ -262,12 +261,14 @@ public final class TerminalRow {
             } else {
                 // Overwrite the contents of the next column, which mean we actually remove java characters. Due to the
                 // check at the beginning of this method we know that we are not overwriting a wide char.
-                int newNextNextColumnIndex = newNextColumnIndex + (Character.isHighSurrogate(mText[newNextColumnIndex]) ? 2 : 1);
-                int nextLen = newNextNextColumnIndex - newNextColumnIndex;
+                int nextLen = (newNextColumnIndex < mSpaceUsed)
+                    ? WcWidth.charCount(mText, newNextColumnIndex, mSpaceUsed)
+                    : 0;
+                int newNextNextColumnIndex = newNextColumnIndex + nextLen;
 
                 // Shift the array leftwards.
                 System.arraycopy(text, newNextNextColumnIndex, text, newNextColumnIndex, mSpaceUsed - newNextNextColumnIndex);
-                mSpaceUsed -= nextLen;
+                mSpaceUsed -= (short) nextLen;
             }
         }
     }

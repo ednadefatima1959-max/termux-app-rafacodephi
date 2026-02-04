@@ -535,7 +535,29 @@ public final class WcWidth {
     /** The width at an index position in a java char array. */
     public static int width(char[] chars, int index) {
         char c = chars[index];
-        return Character.isHighSurrogate(c) ? width(Character.toCodePoint(c, chars[index + 1])) : width(c);
+        if (Character.isHighSurrogate(c)) {
+            if (index + 1 < chars.length && Character.isLowSurrogate(chars[index + 1])) {
+                return width(Character.toCodePoint(c, chars[index + 1]));
+            }
+            return width(c);
+        }
+        return width(c);
+    }
+
+    /** Get the code point at index within the given limit (exclusive). */
+    public static int codePointAt(char[] chars, int index, int limit) {
+        char c = chars[index];
+        if (Character.isHighSurrogate(c) && index + 1 < limit && Character.isLowSurrogate(chars[index + 1])) {
+            return Character.toCodePoint(c, chars[index + 1]);
+        }
+        return c;
+    }
+
+    /** Get the number of chars that make up the code point at index within the given limit (exclusive). */
+    public static int charCount(char[] chars, int index, int limit) {
+        if (index >= limit) return 0;
+        char c = chars[index];
+        return (Character.isHighSurrogate(c) && index + 1 < limit && Character.isLowSurrogate(chars[index + 1])) ? 2 : 1;
     }
 
     /**
@@ -549,10 +571,17 @@ public final class WcWidth {
         int count = 0;
         for (int i = start; i < end && i < chars.length;) {
             if (Character.isHighSurrogate(chars[i])) {
-                if (width(Character.toCodePoint(chars[i], chars[i + 1])) <= 0) {
-                    count++;
+                if (i + 1 < chars.length && Character.isLowSurrogate(chars[i + 1])) {
+                    if (width(Character.toCodePoint(chars[i], chars[i + 1])) <= 0) {
+                        count++;
+                    }
+                    i += 2;
+                } else {
+                    if (width(chars[i]) <= 0) {
+                        count++;
+                    }
+                    i++;
                 }
-                i += 2;
             } else {
                 if (width(chars[i]) <= 0) {
                     count++;
