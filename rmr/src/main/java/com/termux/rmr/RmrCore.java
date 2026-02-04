@@ -27,6 +27,6 @@ public final class RmrCore {
         if (tag == null) return "";
         String t = tag.trim();
         if (t.isEmpty()) return "";
-        return t.toUpperCase();
+        return t.toUpperCase(java.util.Locale.ROOT);
     }
 }

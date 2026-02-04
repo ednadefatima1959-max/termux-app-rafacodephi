@@ -140,7 +140,7 @@ public final class AppShell {
             try {
                 appShell.executeInner(currentPackageContext);
             } catch (IllegalThreadStateException | InterruptedException e) {
-                // TODO: Should either of these be handled or returned?
+                appShell.handleExecuteInnerFailure(currentPackageContext, e);
             }
         } else {
             new Thread() {
@@ -149,7 +149,7 @@ public final class AppShell {
                     try {
                         appShell.executeInner(currentPackageContext);
                     } catch (IllegalThreadStateException | InterruptedException e) {
-                        // TODO: Should either of these be handled or returned?
+                        appShell.handleExecuteInnerFailure(currentPackageContext, e);
                     }
                 }
             }.start();
@@ -196,6 +196,11 @@ public final class AppShell {
                     // do nothing. The command is not a shell, the shell closed
                     // STDIN, the script already contained the exit command, etc.
                     // these cases we want the output instead of returning null.
+                    try {
+                        STDIN.close();
+                    } catch (IOException closeException) {
+                        // might be closed already
+                    }
                 } else {
                     // other issues we don't know how to handle, leads to
                     // returning null
@@ -243,6 +248,24 @@ public final class AppShell {
             return;
 
         AppShell.processAppShellResult(this, null);
+    }
+
+    private void handleExecuteInnerFailure(@NonNull final Context context, @NonNull final Exception exception) {
+        if (exception instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+        }
+
+        String exceptionMessage = exception.getMessage() == null ? exception.toString() : exception.getMessage();
+        mExecutionCommand.setStateFailed(Errno.ERRNO_FAILED.getCode(),
+            context.getString(R.string.error_exception_received_while_executing_app_shell_command,
+                mExecutionCommand.getCommandIdAndLabelLogString(), exceptionMessage),
+            exception);
+        mExecutionCommand.resultData.exitCode = 1;
+        AppShell.processAppShellResult(this, null);
+
+        if (mExecutionCommand.isExecuting()) {
+            kill();
+        }
     }
 
     /**
