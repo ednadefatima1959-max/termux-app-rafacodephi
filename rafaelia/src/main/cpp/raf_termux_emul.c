@@ -11,6 +11,8 @@ static u32 RmR_write(const struct RAF_EMU_IO *io, const u8 *buf, u32 len){
   return 0u;
 }
 
+static void RmR_pkg_install(raf_termux_emu_t *emu, const u8 *name, u32 name_len);
+
 static u8 RmR_is_space(u8 v){
   return (v == (u8)' ' || v == (u8)'\t' || v == (u8)'\n' || v == (u8)'\r') ? 1u : 0u;
 }
@@ -67,7 +69,7 @@ void RmR_emul_init(raf_termux_emu_t *emu, const struct RAF_EMU_IO *io, u32 arch_
   emu->arch_id = arch_id;
   emu->bus_bits = bus_bits;
   emu->_pad0 = 0u;
-  emu->seed = 0xB17RAFu;
+  emu->seed = 0x0B17AFu;
   emu->last_status = 0u;
   emu->package_count = 0u;
   {
@@ -105,9 +107,10 @@ u32 RmR_emul_bind_termux_exec(raf_termux_emu_t *emu){
 }
 
 static void RmR_emit_help(const struct RAF_EMU_IO *io){
-  RmR_write_literal(io, "raf_termux_emu: comandos: help, echo, pkg, uname, stat\n");
+  RmR_write_literal(io, "raf_termux_emu: comandos: help, echo, pkg, uname, stat, hw, bootstrap, proot\n");
   RmR_write_literal(io, "pkg list | pkg install <nome> | pkg exec <nome>\n");
   RmR_write_literal(io, "tools list | tools info <nome>\n");
+  RmR_write_literal(io, "bootstrap init | proot init\n");
 }
 
 static void RmR_emit_uname(const raf_termux_emu_t *emu){
@@ -135,6 +138,54 @@ static void RmR_emit_stat(const raf_termux_emu_t *emu){
   RmR_write_literal(io, " tools=");
   RmR_write_u32(io, RmR_toolset_count());
   RmR_write_literal(io, "\n");
+}
+
+
+static void RmR_emit_hw(const raf_termux_emu_t *emu){
+  const struct RAF_EMU_IO *io = &emu->io;
+  RmR_write_literal(io, "arch=");
+  if(emu->arch_id == 1u) RmR_write_literal(io, "x86_64");
+  else if(emu->arch_id == 2u) RmR_write_literal(io, "x86");
+  else if(emu->arch_id == 3u) RmR_write_literal(io, "arm64");
+  else if(emu->arch_id == 4u) RmR_write_literal(io, "arm");
+  else if(emu->arch_id == 5u) RmR_write_literal(io, "riscv64");
+  else if(emu->arch_id == 6u) RmR_write_literal(io, "riscv32");
+  else RmR_write_literal(io, "unknown");
+  RmR_write_literal(io, " bus=");
+  if(emu->bus_bits == 64u) RmR_write_literal(io, "64");
+  else if(emu->bus_bits == 32u) RmR_write_literal(io, "32");
+  else RmR_write_literal(io, "?");
+  RmR_write_literal(io, " seed=");
+  RmR_write_u32(io, emu->seed);
+  RmR_write_literal(io, "\n");
+}
+
+static u32 RmR_emit_bootstrap(raf_termux_emu_t *emu){
+  const u8 apt[] = { 'a','p','t' };
+  const u8 deb[] = { 'd','e','b','o','o','t','s','t','r','a','p' };
+  const u8 proot[] = { 'p','r','o','o','t' };
+  RmR_pkg_install(emu, apt, 3u);
+  if(emu->last_status != 0u) return emu->last_status;
+  RmR_pkg_install(emu, deb, 11u);
+  if(emu->last_status != 0u) return emu->last_status;
+  RmR_pkg_install(emu, proot, 5u);
+  if(emu->last_status != 0u) return emu->last_status;
+  RmR_write_literal(&emu->io, "bootstrap=ready\n");
+  return 0u;
+}
+
+static u32 RmR_emit_proot(raf_termux_emu_t *emu){
+  const u8 proot[] = { 'p','r','o','o','t' };
+  const u8 distro[] = { 'p','r','o','o','t','-','d','i','s','t','r','o' };
+  const u8 qemu[] = { 'q','e','m','u','-','u','s','e','r','-','s','t','a','t','i','c' };
+  RmR_pkg_install(emu, proot, 5u);
+  if(emu->last_status != 0u) return emu->last_status;
+  RmR_pkg_install(emu, distro, 12u);
+  if(emu->last_status != 0u) return emu->last_status;
+  RmR_pkg_install(emu, qemu, 16u);
+  if(emu->last_status != 0u) return emu->last_status;
+  RmR_write_literal(&emu->io, "proot=ready\n");
+  return 0u;
 }
 
 static u8 RmR_tool_name_by_id(u32 id, const char **name, u32 *len){
@@ -292,6 +343,31 @@ u32 RmR_emul_exec(raf_termux_emu_t *emu, const u8 *cmd, u32 len){
     RmR_emit_stat(emu);
     emu->last_status = 0u;
     return 0u;
+  }
+  if(RmR_str_eq_n(t0, t0_len, (const u8*)"hw", 2u)){
+    RmR_emit_hw(emu);
+    emu->last_status = 0u;
+    return 0u;
+  }
+  if(RmR_str_eq_n(t0, t0_len, (const u8*)"bootstrap", 9u)){
+    if(t1 && RmR_str_eq_n(t1, t1_len, (const u8*)"init", 4u)){
+      u32 st = RmR_emit_bootstrap(emu);
+      emu->last_status = st;
+      return st;
+    }
+    emu->last_status = 1u;
+    RmR_write_literal(&emu->io, "bootstrap?\n");
+    return 1u;
+  }
+  if(RmR_str_eq_n(t0, t0_len, (const u8*)"proot", 5u)){
+    if(t1 && RmR_str_eq_n(t1, t1_len, (const u8*)"init", 4u)){
+      u32 st = RmR_emit_proot(emu);
+      emu->last_status = st;
+      return st;
+    }
+    emu->last_status = 1u;
+    RmR_write_literal(&emu->io, "proot?\n");
+    return 1u;
   }
   if(RmR_str_eq_n(t0, t0_len, (const u8*)"pkg", 3u)){
     if(t1 && RmR_str_eq_n(t1, t1_len, (const u8*)"list", 4u)){
