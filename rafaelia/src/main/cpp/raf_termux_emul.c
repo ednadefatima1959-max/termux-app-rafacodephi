@@ -61,11 +61,35 @@ static void RmR_write_u32(const struct RAF_EMU_IO *io, u32 v){
   (void)RmR_write(io, buf, n);
 }
 
+static u32 RmR_u32le_4(const u8 *p){
+  return ((u32)p[0]) | ((u32)p[1] << 8u) | ((u32)p[2] << 16u) | ((u32)p[3] << 24u);
+}
+
+static u8 RmR_cmd_eq4(const u8 *t, u32 len, u32 le4){
+  if(len != 4u || !t) return 0u;
+  return (RmR_u32le_4(t) == le4) ? 1u : 0u;
+}
+
+static u8 RmR_cmd_eq5(const u8 *t, u32 len, const u8 a, const u8 b, const u8 c, const u8 d, const u8 e){
+  if(len != 5u || !t) return 0u;
+  return (t[0]==a && t[1]==b && t[2]==c && t[3]==d && t[4]==e) ? 1u : 0u;
+}
+
+
 static u32 RmR_hash_token(const u8 *buf, u32 len){
-  u32 h = 2166136261u;
+  u32 h = 0x811C9DC5u;
   for(u32 i=0u;i<len;i++){
     h ^= (u32)buf[i];
-    h *= 16777619u;
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+    __asm__ volatile(
+      "imull $0x01000193, %0"
+      : "+r"(h)
+      :
+      : "cc"
+    );
+#else
+    h *= 0x01000193u;
+#endif
   }
   return h;
 }
@@ -344,12 +368,12 @@ u32 RmR_emul_exec(raf_termux_emu_t *emu, const u8 *cmd, u32 len){
     return RmR_emul_exec(emu, &cmd[pos], len - pos);
   }
 
-  if(RmR_str_eq_n(t0, t0_len, (const u8*)"help", 4u)){
+  if(RmR_cmd_eq4(t0, t0_len, 0x706c6568u)){
     RmR_emit_help(&emu->io);
     emu->last_status = 0u;
     return 0u;
   }
-  if(RmR_str_eq_n(t0, t0_len, (const u8*)"echo", 4u)){
+  if(RmR_cmd_eq4(t0, t0_len, 0x6f686365u)){
     pos = RmR_skip_space(cmd, len, pos);
     if(pos < len){
       (void)RmR_write(&emu->io, &cmd[pos], len - pos);
@@ -358,12 +382,12 @@ u32 RmR_emul_exec(raf_termux_emu_t *emu, const u8 *cmd, u32 len){
     emu->last_status = 0u;
     return 0u;
   }
-  if(RmR_str_eq_n(t0, t0_len, (const u8*)"uname", 5u)){
+  if(RmR_cmd_eq5(t0, t0_len, (u8)'u', (u8)'n', (u8)'a', (u8)'m', (u8)'e')){
     RmR_emit_uname(emu);
     emu->last_status = 0u;
     return 0u;
   }
-  if(RmR_str_eq_n(t0, t0_len, (const u8*)"stat", 4u)){
+  if(RmR_cmd_eq4(t0, t0_len, 0x74617473u)){
     RmR_emit_stat(emu);
     emu->last_status = 0u;
     return 0u;
@@ -383,7 +407,7 @@ u32 RmR_emul_exec(raf_termux_emu_t *emu, const u8 *cmd, u32 len){
     RmR_write_literal(&emu->io, "bootstrap?\n");
     return 1u;
   }
-  if(RmR_str_eq_n(t0, t0_len, (const u8*)"proot", 5u)){
+  if(RmR_cmd_eq5(t0, t0_len, (u8)'p', (u8)'r', (u8)'o', (u8)'o', (u8)'t')){
     if(t1 && RmR_str_eq_n(t1, t1_len, (const u8*)"init", 4u)){
       u32 st = RmR_emit_proot(emu);
       emu->last_status = st;
