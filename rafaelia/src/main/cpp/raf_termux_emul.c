@@ -4,6 +4,7 @@
 
 #include "raf_termux_emul.h"
 #include "raf_termux_toolset.h"
+#include "raf_termux_packages.h"
 #include "raf_termux_exec.h"
 
 static u32 RmR_write(const struct RAF_EMU_IO *io, const u8 *buf, u32 len){
@@ -58,6 +59,28 @@ static void RmR_write_u32(const struct RAF_EMU_IO *io, u32 v){
     while(t > 0u) buf[n++] = tmp[--t];
   }
   (void)RmR_write(io, buf, n);
+}
+
+static u32 RmR_hash_token(const u8 *buf, u32 len){
+  u32 h = 2166136261u;
+  for(u32 i=0u;i<len;i++){
+    h ^= (u32)buf[i];
+    h *= 16777619u;
+  }
+  return h;
+}
+
+static u8 RmR_pkg_exists_catalog(const u8 *name, u32 name_len, u32 *id_out){
+  const raf_termux_pkg_table_t *tb = RmR_termux_packages();
+  if(!tb || !name || name_len == 0u) return 0u;
+  u32 id = RmR_hash_token(name, name_len);
+  for(u32 i=0u;i<tb->count;i++){
+    if(tb->entries[i].id == id && (u32)tb->entries[i].name_len == name_len){
+      if(id_out) *id_out = id;
+      return 1u;
+    }
+  }
+  return 0u;
 }
 
 void RmR_emul_init(raf_termux_emu_t *emu, const struct RAF_EMU_IO *io, u32 arch_id, u8 bus_bits){
@@ -275,27 +298,28 @@ static u8 RmR_pkg_has(const raf_termux_emu_t *emu, u32 id){
 }
 
 static void RmR_pkg_install(raf_termux_emu_t *emu, const u8 *name, u32 name_len){
+  u32 id = 0u;
   u32 idx = 0u;
-  if(!RmR_toolset_find(name, name_len, &idx)){
+  if(RmR_toolset_find(name, name_len, &idx)){
+    id = RmR_toolset_id_at(idx);
+  } else if(!RmR_pkg_exists_catalog(name, name_len, &id)){
     emu->last_status = 1u;
     RmR_write_literal(&emu->io, "noent\n");
     return;
   }
-  {
-    u32 id = RmR_toolset_id_at(idx);
-    if(RmR_pkg_has(emu, id)){
-      emu->last_status = 0u;
-      RmR_write_literal(&emu->io, "ok\n");
-      return;
-    }
-    if(emu->package_count < 128u){
-      emu->packages[emu->package_count++] = id;
-      emu->last_status = 0u;
-      RmR_write_literal(&emu->io, "ok\n");
-    } else {
-      emu->last_status = 2u;
-      RmR_write_literal(&emu->io, "full\n");
-    }
+
+  if(RmR_pkg_has(emu, id)){
+    emu->last_status = 0u;
+    RmR_write_literal(&emu->io, "ok\n");
+    return;
+  }
+  if(emu->package_count < 128u){
+    emu->packages[emu->package_count++] = id;
+    emu->last_status = 0u;
+    RmR_write_literal(&emu->io, "ok\n");
+  } else {
+    emu->last_status = 2u;
+    RmR_write_literal(&emu->io, "full\n");
   }
 }
 
