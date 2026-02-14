@@ -26,7 +26,7 @@ typedef struct {
 } raf_essential_t;
 
 typedef struct {
-  raf_essential_t slots[RAF_ESSENTIAL_MAX];
+  const raf_essential_t *slots;
   u32 count;
   u32 seal;
 } raf_essential_table_t;

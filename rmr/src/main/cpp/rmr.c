@@ -14,7 +14,10 @@ static inline uint32_t rmr_flip_u32(uint32_t v) {
 }
 
 static inline uint32_t rmr_transmute_u32(uint32_t v) {
-#if defined(__aarch64__) || defined(__arm__)
+#if defined(__aarch64__)
+    __asm__ __volatile__("rev %w0, %w0" : "+r"(v));
+    return v;
+#elif defined(__arm__)
     __asm__ __volatile__("rev %0, %0" : "+r"(v));
     return v;
 #else
@@ -90,6 +93,7 @@ Java_com_termux_rmr_RmrCore_nativeClamp(JNIEnv *e, jclass c, jint v, jint lo, ji
 
 JNIEXPORT jint JNICALL
 Java_com_termux_rmr_RmrCore_nativeStableHash(JNIEnv *e, jclass c, jstring s) {
+    (void)c;
     if (s == NULL) return 0;
     const char *p = (*e)->GetStringUTFChars(e, s, 0);
     if (p == NULL) return 0;

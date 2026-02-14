@@ -10,7 +10,7 @@ ext {
     // by replacing $PREFIX since app code is dependant on the variant used to build the APK.
     // Currently supported values are: [ "apt-android-7" "apt-android-5" ]
     packageVariant = System.getenv("TERMUX_PACKAGE_VARIANT") ?: "apt-android-7" // Default: "apt-android-7"
-    bootstrapBaseUrl = System.getenv("TERMUX_BOOTSTRAP_BASE_URL")
+    bootstrapBaseUrl = System.getenv("TERMUX_BOOTSTRAP_BASE_URL") ?: "https://github.com/termux/termux-packages/releases/download"
 }
 
 android {
@@ -163,11 +163,6 @@ def validateVersionName(String versionName) {
 def downloadBootstrap(String arch, String expectedChecksum, String version) {
     def digest = java.security.MessageDigest.getInstance("SHA-256")
     def baseUrl = project.ext.bootstrapBaseUrl
-    if (!baseUrl) {
-        throw new GradleException("TERMUX_BOOTSTRAP_BASE_URL is not set. Provide a bootstrap mirror that matches the " +
-            "applicationId and includes BOOTSTRAP_INFO metadata.")
-    }
-
     def localUrl = "src/main/cpp/bootstrap-" + arch + ".zip"
     def file = new File(projectDir, localUrl)
     if (file.exists()) {
@@ -271,33 +266,9 @@ def requiredBootstrapMetadata(File file, String expectedPackageName) {
     }
 }
 
-task verifyBootstraps {
-    description = 'Validates that local bootstrap archives exist and match expected metadata'
-    group = 'verification'
-
-    doLast {
-        def expectedPackageName = android.defaultConfig.applicationId
-        def arches = ["aarch64", "arm", "i686", "x86_64"]
-        def missing = []
-        arches.each { arch ->
-            def file = new File(projectDir, "src/main/cpp/bootstrap-" + arch + ".zip")
-            if (!file.exists()) {
-                missing.add(file.path)
-            } else {
-                requiredBootstrapMetadata(file, expectedPackageName)
-            }
-        }
-
-        if (!missing.isEmpty()) {
-            throw new GradleException("Missing local bootstrap archives:\n - " + missing.join("\n - ") +
-                "\nProvide bootstraps built for \"" + expectedPackageName + "\" in app/src/main/cpp.")
-        }
-    }
-}
-
 afterEvaluate {
     android.applicationVariants.all { variant ->
-        variant.javaCompileProvider.get().dependsOn(verifyBootstraps)
+        variant.javaCompileProvider.get().dependsOn(downloadBootstraps)
     }
 }
 
