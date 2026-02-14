@@ -58,9 +58,9 @@ static const raf_essential_t g_essentials[RAF_ESSENTIAL_MAX] = {
 };
 
 static const raf_essential_table_t g_table = {
-  g_essentials,
-  RAF_ESSENTIAL_MAX,
-  0x52414645u /* "RAFE" */
+  .slots = g_essentials,
+  .count = RAF_ESSENTIAL_MAX,
+  .seal = 0x52414645u /* "RAFE" */
 };
 
 const raf_essential_table_t *RmR_essentials_table(void){

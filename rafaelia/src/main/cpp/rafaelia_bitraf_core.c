@@ -13,6 +13,12 @@ typedef unsigned long long u64;
 #define NULL ((void*)0)
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define RAF_UNUSED __attribute__((unused))
+#else
+#define RAF_UNUSED
+#endif
+
 /* ==== Arquitetura/Barramento (detecção compile-time) ==== */
 #define RAF_ARCH_UNKNOWN 0u
 #define RAF_ARCH_X86_64  1u
@@ -53,7 +59,7 @@ struct RMR_API {
 
 static struct RMR_API g_api;
 
-static void rmr_bind_api(const struct RMR_API *api){
+static RAF_UNUSED void rmr_bind_api(const struct RMR_API *api){
   if(api) g_api = *api;
 }
 
@@ -62,7 +68,7 @@ static void rmr_panic(const char *msg){
   for(;;) { /* loop */ }
 }
 
-static void rmr_write_bytes(const u8 *buf, u32 len){
+static RAF_UNUSED void rmr_write_bytes(const u8 *buf, u32 len){
   if(g_api.write) (void)g_api.write(g_api.ctx, buf, len);
 }
 
@@ -76,21 +82,21 @@ struct RAF_HOOKS {
 
 static struct RAF_HOOKS g_hooks;
 
-static void raf_bind_hooks(const struct RAF_HOOKS *hooks){
+static RAF_UNUSED void raf_bind_hooks(const struct RAF_HOOKS *hooks){
   if(hooks) g_hooks = *hooks;
 }
 
-static u32 raf_hook_read(u8 *buf, u32 len){
+static RAF_UNUSED u32 raf_hook_read(u8 *buf, u32 len){
   if(g_hooks.read) return g_hooks.read(g_hooks.ctx, buf, len);
   return 0u;
 }
 
-static u32 raf_hook_write(const u8 *buf, u32 len){
+static RAF_UNUSED u32 raf_hook_write(const u8 *buf, u32 len){
   if(g_hooks.write) return g_hooks.write(g_hooks.ctx, buf, len);
   return 0u;
 }
 
-static void raf_hook_barrier(void){
+static RAF_UNUSED void raf_hook_barrier(void){
   if(g_hooks.barrier) g_hooks.barrier(g_hooks.ctx);
 }
 
@@ -99,7 +105,7 @@ static void rmr_memset(void *dst, u8 v, u32 n){
   u8 *d=(u8*)dst;
   while(n--) *d++=v;
 }
-static void rmr_memcpy(void *dst, const void *src, u32 n){
+static RAF_UNUSED void rmr_memcpy(void *dst, const void *src, u32 n){
   u8 *d=(u8*)dst; const u8*s=(const u8*)src;
   while(n--) *d++=*s++;
 }
@@ -328,7 +334,7 @@ static void raf_area_update(raf_store_t *st, const raf_point_t *p, u8 area){
   st->last_area = area;
 }
 
-static void raf_store_init(raf_store_t *st){
+static RAF_UNUSED void raf_store_init(raf_store_t *st){
   if(!st) rmr_panic("raf_store NULL");
   rmr_memset(st, 0, sizeof(*st));
   st->arch_id = raf_arch_id();
@@ -403,7 +409,7 @@ typedef struct {
   u32 aux;
 } raf_machine_t;
 
-static void raf_machine_init(raf_machine_t *m){
+static RAF_UNUSED void raf_machine_init(raf_machine_t *m){
   if(!m) rmr_panic("raf_machine NULL");
   m->s = RAF_D;
   m->t = 0;
@@ -426,7 +432,7 @@ static raf_state_t raf_next_state(raf_state_t cur, u8 p0, u8 p1){
   }
 }
 
-static void raf_step(raf_store_t *st, raf_machine_t *m, u64 payload64, u16 noise_hint){
+static RAF_UNUSED void raf_step(raf_store_t *st, raf_machine_t *m, u64 payload64, u16 noise_hint){
   if(!st || !m) rmr_panic("raf_step NULL");
 
   /* fase = 4 ciclos absorvente (input/process/output/semântica) */
