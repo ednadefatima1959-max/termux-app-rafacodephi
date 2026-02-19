@@ -51,6 +51,10 @@
     #define HAS_NEON 1
 #endif
 
+#if defined(__arm__) || defined(__aarch64__)
+    #define HAS_BM_NEON_ASM 1
+#endif
+
 #if defined(__AVX2__)
     #define HAS_AVX2 1
 #elif defined(__AVX__)
@@ -80,6 +84,13 @@ float vop_min(const float* a, uint32_t n);
 float vop_max(const float* a, uint32_t n);
 float vop_dot(const float* a, const float* b, uint32_t n);
 float vop_norm(const float* a, uint32_t n);
+
+/* ASM kernels (runtime-dispatched when available) */
+#if defined(HAS_BM_NEON_ASM)
+extern float bm_dot_neon(const float* a, const float* b, uint32_t n);
+extern void bm_vadd_neon(const float* a, const float* b, float* r, uint32_t n);
+extern void* bm_memcpy_neon(void* d, const void* s, size_t n);
+#endif
 
 /* Matrix operations - deterministic mathematics */
 mx_t* mx_create(uint32_t r, uint32_t c);
