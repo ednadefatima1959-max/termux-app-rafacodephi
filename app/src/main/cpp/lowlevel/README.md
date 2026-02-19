@@ -38,6 +38,30 @@ This module provides bare-metal, low-level operations for Termux with minimal ex
 - **Set**: SIMD-optimized memory fill
 - **Compare**: Byte-wise comparison
 
+### Hardware Profiling in User-Space (Pragmatic)
+
+The low-level module now exposes `get_hw_profile` with fields safe for Android app sandbox execution.
+
+#### Capability detected
+- ABI (`arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`)
+- `HWCAP` and `HWCAP2` (when kernel/loader exposes auxv)
+- CPUs online from `/sys/devices/system/cpu/online`
+- Cluster max frequencies from `cpufreq` sysfs when readable
+- Page size (`sysconf(_SC_PAGESIZE)`)
+- L1 cache-line size when available (`_SC_LEVEL1_DCACHE_LINESIZE`)
+
+#### Capability accessible in app (Android sandbox)
+- Read-only sysfs/proc style hardware descriptors when permissions allow
+- Runtime hardware feature bitmasks already exported in JNI
+- Structured profile in Java (`BareMetal.HardwareProfile`) with fixed fields + access flags
+
+#### Not accessible without system/kernel privileges
+- Physical register direct reads/writes from app process
+- GPIO pin control / raw pinmux programming
+- MMIO / privileged kernel interfaces
+
+These limitations are explicit in profile access flags (`HW_ACCESS_NO_*`) to avoid over-promising hardware control in unprivileged user-space.
+
 ### Key Design Principles
 
 1. **No External Dependencies**: Only libc for basic operations

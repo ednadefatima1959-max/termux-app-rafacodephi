@@ -127,11 +127,36 @@ char* bstr_cpy(char* d, const char* s);
 const char* get_arch_name(void);
 uint32_t get_arch_caps(void);
 
+typedef struct {
+    char abi[24];
+    uint64_t hwcap;
+    uint64_t hwcap2;
+    uint32_t cpus_online;
+    uint32_t page_size;
+    uint32_t cache_line;
+    uint32_t access_flags;
+    char cpu_clusters[128];
+} hw_profile_t;
+
+void get_hw_profile(hw_profile_t* p);
+
 /* Capability flags */
 #define CAP_NEON     (1 << 0)
 #define CAP_AVX      (1 << 1)
 #define CAP_AVX2     (1 << 2)
 #define CAP_SSE2     (1 << 3)
 #define CAP_SSE42    (1 << 4)
+
+/* User-space accessibility flags */
+#define HW_ACCESS_HAS_ABI               (1u << 0)
+#define HW_ACCESS_HAS_HWCAP             (1u << 1)
+#define HW_ACCESS_HAS_HWCAP2            (1u << 2)
+#define HW_ACCESS_HAS_CPUS_ONLINE       (1u << 3)
+#define HW_ACCESS_HAS_CPU_CLUSTER_FREQ  (1u << 4)
+#define HW_ACCESS_HAS_PAGE_SIZE         (1u << 5)
+#define HW_ACCESS_HAS_CACHE_LINE        (1u << 6)
+#define HW_ACCESS_NO_PHYS_REG_ACCESS    (1u << 28)
+#define HW_ACCESS_NO_GPIO_PIN_ACCESS    (1u << 29)
+#define HW_ACCESS_NO_KERNEL_MMIO_ACCESS (1u << 30)
 
 #endif /* TERMUX_BAREMETAL_H */
