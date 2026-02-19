@@ -53,8 +53,15 @@
 
 #include "baremetal.h"
 
-#include <fcntl.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <stdio.h>
+
+#ifdef __linux__
+#include <sys/auxv.h>
+#endif
 
 #ifdef __ANDROID__
 #include <android/log.h>
@@ -981,6 +988,151 @@ char* bstr_cpy(char* d, const char* s) {
 
 const char* get_arch_name(void) {
     return ARCH_NAME;
+}
+
+
+static ssize_t hw_read_file(const char* path, char* buf, size_t n) {
+    if (!path || !buf || n == 0) return -1;
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) return -1;
+    ssize_t r = read(fd, buf, n - 1);
+    close(fd);
+    if (r <= 0) return -1;
+    buf[r] = '\0';
+    return r;
+}
+
+static uint32_t hw_parse_cpu_online(const char* s) {
+    if (!s || !*s) return 0;
+    uint32_t count = 0;
+    uint32_t i = 0;
+    while (s[i]) {
+        while (s[i] == ' ' || s[i] == '\n' || s[i] == '\t' || s[i] == ',') i++;
+        if (!s[i]) break;
+
+        uint32_t a = 0;
+        while (s[i] >= '0' && s[i] <= '9') {
+            a = a * 10u + (uint32_t)(s[i] - '0');
+            i++;
+        }
+
+        if (s[i] == '-') {
+            i++;
+            uint32_t b = 0;
+            while (s[i] >= '0' && s[i] <= '9') {
+                b = b * 10u + (uint32_t)(s[i] - '0');
+                i++;
+            }
+            if (b >= a) count += (b - a + 1u);
+        } else {
+            count += 1u;
+        }
+
+        while (s[i] && s[i] != ',') i++;
+        if (s[i] == ',') i++;
+    }
+    return count;
+}
+
+static void hw_append_cluster(char* out, size_t out_n, const char* txt) {
+    if (!out || !txt || out_n == 0) return;
+    size_t len = 0;
+    while (len < out_n && out[len]) len++;
+    if (len >= out_n - 1) return;
+
+    size_t i = 0;
+    while (txt[i] && len + i < out_n - 1) {
+        out[len + i] = txt[i];
+        i++;
+    }
+    out[len + i] = '\0';
+}
+
+static void hw_collect_cluster_freqs(hw_profile_t* p) {
+    char path[128];
+    char val[64];
+    int found = 0;
+
+    p->cpu_clusters[0] = '\0';
+
+    for (int cpu = 0; cpu < 16; cpu++) {
+        int n = snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", cpu);
+        if (n <= 0 || n >= (int)sizeof(path)) continue;
+        if (hw_read_file(path, val, sizeof(val)) <= 0) continue;
+
+        int dup = 0;
+        for (int prev = 0; prev < cpu; prev++) {
+            char ppath[128];
+            char pval[64];
+            int pn = snprintf(ppath, sizeof(ppath), "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", prev);
+            if (pn <= 0 || pn >= (int)sizeof(ppath)) continue;
+            if (hw_read_file(ppath, pval, sizeof(pval)) <= 0) continue;
+            if (bstr_cmp(val, pval) == 0) {
+                dup = 1;
+                break;
+            }
+        }
+        if (dup) continue;
+
+        char part[96];
+        int m = snprintf(part, sizeof(part), "%scluster%d:%s", found ? ";" : "", found, val);
+        if (m > 0) {
+            hw_append_cluster(p->cpu_clusters, sizeof(p->cpu_clusters), part);
+            found++;
+        }
+    }
+
+    if (found > 0) {
+        p->access_flags |= HW_ACCESS_HAS_CPU_CLUSTER_FREQ;
+    }
+}
+
+void get_hw_profile(hw_profile_t* p) {
+    if (!p) return;
+
+    bmem_zero(p, sizeof(*p));
+
+    bstr_cpy(p->abi, ARCH_NAME);
+    p->access_flags |= HW_ACCESS_HAS_ABI;
+
+#ifdef __linux__
+#ifdef AT_HWCAP
+    p->hwcap = (uint64_t)getauxval(AT_HWCAP);
+    p->access_flags |= HW_ACCESS_HAS_HWCAP;
+#endif
+#ifdef AT_HWCAP2
+    p->hwcap2 = (uint64_t)getauxval(AT_HWCAP2);
+    p->access_flags |= HW_ACCESS_HAS_HWCAP2;
+#endif
+#endif
+
+    char online[64];
+    if (hw_read_file("/sys/devices/system/cpu/online", online, sizeof(online)) > 0) {
+        p->cpus_online = hw_parse_cpu_online(online);
+        if (p->cpus_online > 0) {
+            p->access_flags |= HW_ACCESS_HAS_CPUS_ONLINE;
+        }
+    }
+
+    hw_collect_cluster_freqs(p);
+
+    long pg = sysconf(_SC_PAGESIZE);
+    if (pg > 0) {
+        p->page_size = (uint32_t)pg;
+        p->access_flags |= HW_ACCESS_HAS_PAGE_SIZE;
+    }
+
+#ifdef _SC_LEVEL1_DCACHE_LINESIZE
+    long cl = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+    if (cl > 0) {
+        p->cache_line = (uint32_t)cl;
+        p->access_flags |= HW_ACCESS_HAS_CACHE_LINE;
+    }
+#endif
+
+    p->access_flags |= HW_ACCESS_NO_PHYS_REG_ACCESS;
+    p->access_flags |= HW_ACCESS_NO_GPIO_PIN_ACCESS;
+    p->access_flags |= HW_ACCESS_NO_KERNEL_MMIO_ACCESS;
 }
 
 uint32_t get_arch_caps(void) {

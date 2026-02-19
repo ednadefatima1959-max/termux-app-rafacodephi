@@ -46,10 +46,20 @@ public class BareMetal {
     public static native int getCapabilities();
 
     /**
-     * Get detailed capability payload.
-     * Indexes: [0]=effective, [1]=runtime, [2]=binary, [3]=runtimeValid(0/1)
+     * Native hardware profile encoded as key/value pairs.
      */
-    public static native int[] getCapabilitiesDetail();
+    private static native String getHardwareProfile();
+
+    public static final int HW_ACCESS_HAS_ABI = 1 << 0;
+    public static final int HW_ACCESS_HAS_HWCAP = 1 << 1;
+    public static final int HW_ACCESS_HAS_HWCAP2 = 1 << 2;
+    public static final int HW_ACCESS_HAS_CPUS_ONLINE = 1 << 3;
+    public static final int HW_ACCESS_HAS_CPU_CLUSTER_FREQ = 1 << 4;
+    public static final int HW_ACCESS_HAS_PAGE_SIZE = 1 << 5;
+    public static final int HW_ACCESS_HAS_CACHE_LINE = 1 << 6;
+    public static final int HW_ACCESS_NO_PHYS_REG_ACCESS = 1 << 28;
+    public static final int HW_ACCESS_NO_GPIO_PIN_ACCESS = 1 << 29;
+    public static final int HW_ACCESS_NO_KERNEL_MMIO_ACCESS = 1 << 30;
     
     /**
      * Check if NEON SIMD is available
@@ -360,12 +370,102 @@ public class BareMetal {
         sb.append("Capabilities: 0x").append(Integer.toHexString(getCapabilities())).append("\n");
         sb.append("NEON: ").append(hasNeon()).append("\n");
         sb.append("AVX: ").append(hasAvx()).append("\n");
+        HardwareProfile hw = readHardwareProfile();
+        sb.append("HW Profile ABI: ").append(hw.abi).append("\n");
+        sb.append("HW Profile Flags: 0x").append(Integer.toHexString(hw.accessFlags)).append("\n");
+        sb.append("HW Profile Clusters: ").append(hw.cpuClusters).append("\n");
         sb.append("Implementation: C + Assembly (bare-metal)\n");
         sb.append("Dependencies: None (libc only)\n");
         
         return sb.toString();
     }
     
+
+    public static HardwareProfile readHardwareProfile() {
+        if (!isLoaded()) {
+            return new HardwareProfile("unknown", 0L, 0L, 0, 0, 0, 0, "n/a");
+        }
+        return HardwareProfile.fromNative(getHardwareProfile());
+    }
+
+    public static final class HardwareProfile {
+        public final String abi;
+        public final long hwcap;
+        public final long hwcap2;
+        public final int cpusOnline;
+        public final int pageSize;
+        public final int cacheLine;
+        public final int accessFlags;
+        public final String cpuClusters;
+
+        private HardwareProfile(String abi, long hwcap, long hwcap2, int cpusOnline,
+                                int pageSize, int cacheLine, int accessFlags, String cpuClusters) {
+            this.abi = abi;
+            this.hwcap = hwcap;
+            this.hwcap2 = hwcap2;
+            this.cpusOnline = cpusOnline;
+            this.pageSize = pageSize;
+            this.cacheLine = cacheLine;
+            this.accessFlags = accessFlags;
+            this.cpuClusters = cpuClusters;
+        }
+
+        private static HardwareProfile fromNative(String raw) {
+            String abi = "unknown";
+            long hwcap = 0L;
+            long hwcap2 = 0L;
+            int cpusOnline = 0;
+            int pageSize = 0;
+            int cacheLine = 0;
+            int accessFlags = 0;
+            String cpuClusters = "n/a";
+
+            if (raw != null && !raw.isEmpty()) {
+                String[] pairs = raw.split(";");
+                for (String pair : pairs) {
+                    int eq = pair.indexOf('=');
+                    if (eq <= 0) continue;
+                    String key = pair.substring(0, eq);
+                    String value = pair.substring(eq + 1);
+                    if ("abi".equals(key)) abi = value;
+                    else if ("hwcap".equals(key)) hwcap = parseLongAuto(value);
+                    else if ("hwcap2".equals(key)) hwcap2 = parseLongAuto(value);
+                    else if ("cpus_online".equals(key)) cpusOnline = parseIntAuto(value);
+                    else if ("page_size".equals(key)) pageSize = parseIntAuto(value);
+                    else if ("cache_line".equals(key)) cacheLine = parseIntAuto(value);
+                    else if ("flags".equals(key)) accessFlags = parseIntAuto(value);
+                    else if ("clusters".equals(key)) cpuClusters = value;
+                }
+            }
+
+            return new HardwareProfile(abi, hwcap, hwcap2, cpusOnline, pageSize, cacheLine, accessFlags, cpuClusters);
+        }
+
+        private static int parseIntAuto(String s) {
+            if (s == null || s.isEmpty()) return 0;
+            try {
+                if (s.startsWith("0x") || s.startsWith("0X")) {
+                    return (int)Long.parseLong(s.substring(2), 16);
+                }
+                return Integer.parseInt(s);
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+
+        private static long parseLongAuto(String s) {
+            if (s == null || s.isEmpty()) return 0L;
+            try {
+                if (s.startsWith("0x") || s.startsWith("0X")) {
+                    return Long.parseUnsignedLong(s.substring(2), 16);
+                }
+                return Long.parseLong(s);
+            } catch (NumberFormatException e) {
+                return 0L;
+            }
+        }
+    }
+
     /**
      * Matrix helper class for easier usage
      * Implements RAFAELIA deterministic matrix operations

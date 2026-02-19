@@ -8,6 +8,7 @@
 
 #include <jni.h>
 #include <android/log.h>
+#include <stdio.h>
 #include "baremetal.h"
 
 #define LOG_TAG "TermuxBareMetal-JNI"
@@ -32,22 +33,32 @@ Java_com_termux_lowlevel_BareMetal_getCapabilities(JNIEnv *env, jclass clazz) {
     return (jint)get_arch_caps();
 }
 
-JNIEXPORT jintArray JNICALL
-Java_com_termux_lowlevel_BareMetal_getCapabilitiesDetail(JNIEnv *env, jclass clazz) {
+
+JNIEXPORT jstring JNICALL
+Java_com_termux_lowlevel_BareMetal_getHardwareProfile(JNIEnv *env, jclass clazz) {
     (void)clazz;
+    hw_profile_t p;
+    get_hw_profile(&p);
 
-    jint payload[4];
-    payload[0] = (jint)get_arch_caps();
-    payload[1] = (jint)get_arch_runtime_caps();
-    payload[2] = (jint)get_arch_binary_caps();
-    payload[3] = (jint)get_arch_runtime_caps_valid();
+    char out[512];
+    int n = snprintf(
+        out,
+        sizeof(out),
+        "abi=%s;hwcap=0x%llx;hwcap2=0x%llx;cpus_online=%u;page_size=%u;cache_line=%u;flags=0x%08x;clusters=%s",
+        p.abi,
+        (unsigned long long)p.hwcap,
+        (unsigned long long)p.hwcap2,
+        p.cpus_online,
+        p.page_size,
+        p.cache_line,
+        p.access_flags,
+        p.cpu_clusters[0] ? p.cpu_clusters : "n/a"
+    );
 
-    jintArray arr = (*env)->NewIntArray(env, 4);
-    if (!arr) {
-        return NULL;
+    if (n <= 0) {
+        return (*env)->NewStringUTF(env, "abi=n/a;flags=0");
     }
-    (*env)->SetIntArrayRegion(env, arr, 0, 4, payload);
-    return arr;
+    return (*env)->NewStringUTF(env, out);
 }
 
 /* ============================================================================
@@ -402,7 +413,7 @@ static JNINativeMethod methods[] = {
     /* Architecture */
     {"getArchitecture", "()Ljava/lang/String;", (void*)Java_com_termux_lowlevel_BareMetal_getArchitecture},
     {"getCapabilities", "()I", (void*)Java_com_termux_lowlevel_BareMetal_getCapabilities},
-    {"getCapabilitiesDetail", "()[I", (void*)Java_com_termux_lowlevel_BareMetal_getCapabilitiesDetail},
+    {"getHardwareProfile", "()Ljava/lang/String;", (void*)Java_com_termux_lowlevel_BareMetal_getHardwareProfile},
     
     /* Vector ops */
     {"vectorDot", "([F[F)F", (void*)Java_com_termux_lowlevel_BareMetal_vectorDot},
