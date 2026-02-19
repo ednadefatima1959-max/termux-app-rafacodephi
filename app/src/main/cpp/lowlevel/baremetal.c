@@ -61,30 +61,47 @@
 #define LOGD(...)
 #endif
 
+static inline uint32_t bm_simd_step_f32(void) {
+    return 4u;
+}
+
+static inline size_t bm_simd_step_u8(void) {
+    return 16u;
+}
+
+static inline int bm_can_use_neon_asm(void) {
+#if defined(HAS_BM_NEON_ASM)
+    return (get_arch_caps() & CAP_NEON) != 0;
+#else
+    return 0;
+#endif
+}
+
+
 /* ============================================================================
  * Vector Operations - Optimized for each architecture
  * ========================================================================== */
 
 void vop_add(const float* a, const float* b, float* r, uint32_t n) {
-    #if HAS_NEON
-    /* ARM NEON optimization */
-    uint32_t i;
-    for (i = 0; i + 4 <= n; i += 4) {
-        __builtin_prefetch(a + i + 8);
-        __builtin_prefetch(b + i + 8);
-        for (uint32_t j = 0; j < 4; j++) {
-            r[i + j] = a[i + j] + b[i + j];
+    if (!a || !b || !r || n == 0) return;
+
+#if defined(HAS_BM_NEON_ASM)
+    if (bm_can_use_neon_asm()) {
+        const uint32_t step = bm_simd_step_f32();
+        const uint32_t simd_n = n - (n % step);
+        if (simd_n != 0) {
+            bm_vadd_neon(a, b, r, simd_n);
         }
+        for (uint32_t i = simd_n; i < n; i++) {
+            r[i] = a[i] + b[i];
+        }
+        return;
     }
-    for (; i < n; i++) {
-        r[i] = a[i] + b[i];
-    }
-    #else
-    /* Generic implementation */
+#endif
+
     for (uint32_t i = 0; i < n; i++) {
         r[i] = a[i] + b[i];
     }
-    #endif
 }
 
 void vop_sub(const float* a, const float* b, float* r, uint32_t n) {
@@ -145,26 +162,27 @@ float vop_max(const float* a, uint32_t n) {
 }
 
 float vop_dot(const float* a, const float* b, uint32_t n) {
+    if (!a || !b || n == 0) return 0.0f;
+
+#if defined(HAS_BM_NEON_ASM)
+    if (bm_can_use_neon_asm()) {
+        const uint32_t step = bm_simd_step_f32();
+        const uint32_t simd_n = n - (n % step);
+        float s = 0.0f;
+        if (simd_n != 0) {
+            s = bm_dot_neon(a, b, simd_n);
+        }
+        for (uint32_t i = simd_n; i < n; i++) {
+            s += a[i] * b[i];
+        }
+        return s;
+    }
+#endif
+
     float s = 0.0f;
-    
-    #if HAS_NEON
-    /* Unroll loop for better performance */
-    uint32_t i;
-    for (i = 0; i + 4 <= n; i += 4) {
-        s += a[i] * b[i];
-        s += a[i+1] * b[i+1];
-        s += a[i+2] * b[i+2];
-        s += a[i+3] * b[i+3];
-    }
-    for (; i < n; i++) {
-        s += a[i] * b[i];
-    }
-    #else
     for (uint32_t i = 0; i < n; i++) {
         s += a[i] * b[i];
     }
-    #endif
-    
     return s;
 }
 
@@ -652,23 +670,39 @@ float fm_log(float x) {
  * ========================================================================== */
 
 void* bmem_cpy(void* d, const void* s, size_t n) {
+    if (!d || !s || n == 0) return d;
+
     char* pd = (char*)d;
     const char* ps = (const char*)s;
-    
-    #if defined(__ARM_ARCH_7A__) || defined(__aarch64__)
-    /* Align and use word copies for better performance */
-    while (n >= 4 && ((uintptr_t)pd & 3) == 0) {
-        *((uint32_t*)pd) = *((const uint32_t*)ps);
-        pd += 4;
-        ps += 4;
-        n -= 4;
+
+#if defined(HAS_BM_NEON_ASM)
+    if (bm_can_use_neon_asm()) {
+        const size_t step = bm_simd_step_u8();
+        while (n != 0 && ((((uintptr_t)pd & (step - 1u)) != 0u) || (((uintptr_t)ps & (step - 1u)) != 0u))) {
+            *pd++ = *ps++;
+            n--;
+        }
+
+        const size_t simd_n = n - (n % step);
+        if (simd_n != 0) {
+            bm_memcpy_neon(pd, ps, simd_n);
+            pd += simd_n;
+            ps += simd_n;
+            n -= simd_n;
+        }
+
+        while (n != 0) {
+            *pd++ = *ps++;
+            n--;
+        }
+        return d;
     }
-    #endif
-    
-    while (n--) {
+#endif
+
+    while (n != 0) {
         *pd++ = *ps++;
+        n--;
     }
-    
     return d;
 }
 
