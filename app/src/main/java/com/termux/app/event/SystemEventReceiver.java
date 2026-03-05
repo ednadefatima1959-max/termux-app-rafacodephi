@@ -47,6 +47,7 @@ public class SystemEventReceiver extends BroadcastReceiver {
 
             switch (action) {
                 case Intent.ACTION_BOOT_COMPLETED:
+                case Intent.ACTION_LOCKED_BOOT_COMPLETED:
                     onActionBootCompleted(context, intent);
                     break;
                 case Intent.ACTION_PACKAGE_ADDED:
