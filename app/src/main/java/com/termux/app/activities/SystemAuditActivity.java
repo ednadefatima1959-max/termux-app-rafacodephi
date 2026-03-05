@@ -275,46 +275,59 @@ public class SystemAuditActivity extends AppCompatActivity {
     private String generateAndroid15Audit() {
         StringBuilder sb = new StringBuilder();
         boolean isAndroid15Plus = Build.VERSION.SDK_INT >= 35;
-        
+        int pageSize = getPageSize();
+        boolean batteryExempt = isBatteryOptimizationDisabled();
+
+        File prefixDir = new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH);
+        File shellFile = new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh");
+        File pkgFile = new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/pkg");
+        boolean bootstrapHealthy = prefixDir.exists() && shellFile.exists() && pkgFile.exists();
+
+        boolean pageSizeKnown = pageSize > 0;
+        boolean pageSizeExpected = pageSize == 16384;
+
+        int passCount = 0;
+        int warnCount = 0;
+
         sb.append("🎯 Android 15+ Specific Checks:\n\n");
-        
-        // Version Check
+
         sb.append("📌 API Level Check:\n");
         sb.append("   • Current API: ").append(Build.VERSION.SDK_INT).append("\n");
-        sb.append("   • Android 15 (API 35): ").append(isAndroid15Plus ? "✅ Detected" : "Not Required").append("\n\n");
-        
-        // 16KB Page Size
-        int pageSize = getPageSize();
-        sb.append("📄 16KB Page Size Alignment:\n");
-        sb.append("   • Page Size: ").append(pageSize).append(" bytes\n");
-        sb.append("   • App Alignment: ✅ 16KB aligned (via ldflags)\n");
-        sb.append("   • Native Libs: ✅ Compatible\n");
-        sb.append("   • Status: ✅ PASSED\n\n");
-        
-        // Phantom Process Killer
+        sb.append("   • Android 15 (API 35): ").append(isAndroid15Plus ? "✅ Detected" : "ℹ️ Not Required").append("\n\n");
+
+        sb.append("📄 Runtime Page Size:\n");
+        sb.append("   • Page Size: ").append(pageSizeKnown ? String.valueOf(pageSize) : "unknown").append(" bytes\n");
+        if (!pageSizeKnown) {
+            sb.append("   • Status: ⚠️ Unknown (runtime detection failed)\n\n");
+            warnCount++;
+        } else if (pageSizeExpected) {
+            sb.append("   • Status: ✅ 16KB runtime page size detected\n\n");
+            passCount++;
+        } else {
+            sb.append("   • Status: ⚠️ Non-16KB runtime page size (device-specific)\n\n");
+            warnCount++;
+        }
+
+        sb.append("🏗️ Bootstrap Integrity:\n");
+        sb.append("   • PREFIX exists: ").append(prefixDir.exists() ? "✅ Yes" : "❌ No").append("\n");
+        sb.append("   • /bin/sh exists: ").append(shellFile.exists() ? "✅ Yes" : "❌ No").append("\n");
+        sb.append("   • /bin/pkg exists: ").append(pkgFile.exists() ? "✅ Yes" : "❌ No").append("\n");
+        sb.append("   • Status: ").append(bootstrapHealthy ? "✅ Healthy" : "⚠️ Incomplete").append("\n\n");
+        if (bootstrapHealthy) passCount++; else warnCount++;
+
         sb.append("👻 Phantom Process Killer:\n");
         sb.append("   • Mitigation: ✅ Foreground service configured\n");
         sb.append("   • Service Type: dataSync|specialUse\n");
-        sb.append("   • Battery Exempt: ").append(isBatteryOptimizationDisabled() ? "✅ Yes" : "⚠️ No").append("\n\n");
-        
-        // Background Restrictions
-        sb.append("🔒 Background Restrictions:\n");
-        sb.append("   • Foreground Service: ✅ Configured\n");
-        sb.append("   • Wake Lock: ✅ Available\n");
-        sb.append("   • Notification: ✅ Required for FGS\n\n");
-        
-        // Storage Access
-        sb.append("📂 Storage Access (Scoped Storage):\n");
-        sb.append("   • MANAGE_EXTERNAL_STORAGE: ✅ Requested\n");
-        sb.append("   • Media Permissions: ✅ Configured (Android 13+)\n");
-        sb.append("   • Legacy Storage: ❌ Not used (deprecated)\n\n");
-        
-        // Overall
-        sb.append("📊 Overall Android 15 Compatibility: ✅ PASSED\n");
-        
+        sb.append("   • Battery Exempt: ").append(batteryExempt ? "✅ Yes" : "⚠️ No").append("\n\n");
+        if (batteryExempt) passCount++; else warnCount++;
+
+        String overallStatus = warnCount == 0 ? "✅ PASSED" : "⚠️ REVIEW REQUIRED";
+        sb.append("📊 Overall Android 15 Compatibility: ").append(overallStatus)
+            .append(" (pass=").append(passCount).append(", warn=").append(warnCount).append(")\n");
+
         return sb.toString();
     }
-    
+
     private String generateISOCompliance() {
         StringBuilder sb = new StringBuilder();
         
@@ -614,10 +627,20 @@ public class SystemAuditActivity extends AppCompatActivity {
             if (line != null) {
                 return Integer.parseInt(line.trim());
             }
-        } catch (Exception e) {
-            // Default to 4KB if can't detect
+        } catch (Exception ignored) {
         }
-        return 4096;
+
+        try {
+            Process process = Runtime.getRuntime().exec("getconf PAGESIZE");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line = reader.readLine();
+            if (line != null) {
+                return Integer.parseInt(line.trim());
+            }
+        } catch (Exception ignored) {
+        }
+
+        return -1;
     }
     
     private String getCpuModel() {

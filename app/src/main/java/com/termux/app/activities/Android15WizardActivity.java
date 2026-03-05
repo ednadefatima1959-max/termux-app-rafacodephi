@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.View;
@@ -118,7 +119,7 @@ public class Android15WizardActivity extends AppCompatActivity {
         wizardChecks.add(new WizardCheck(
             "Required Permissions",
             "Termux requires the following permissions to function properly:\n\n" +
-            "• Storage access (for file management)\n" +
+            "• Storage access (MANAGE_EXTERNAL_STORAGE on Android 11+)\n" +
             "• Notification permission (Android 13+)\n" +
             "• Foreground service permission\n" +
             "• Display over other apps (optional)",
@@ -280,11 +281,28 @@ public class Android15WizardActivity extends AppCompatActivity {
     private boolean checkPermissions() {
         // Check notification permission (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, 
+            if (ContextCompat.checkSelfPermission(this,
                 android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 return false;
             }
         }
+
+        // Check storage permission according to platform model
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                return false;
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+
         return true;
     }
     
@@ -296,7 +314,12 @@ public class Android15WizardActivity extends AppCompatActivity {
     private boolean checkBootstrapInstallation() {
         File prefixDir = new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH);
         File binDir = new File(TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH);
-        return prefixDir.exists() && binDir.exists();
+        File shellFile = new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh");
+        File pkgFile = new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/pkg");
+
+        return prefixDir.exists() && binDir.exists() &&
+            shellFile.exists() && shellFile.canRead() &&
+            pkgFile.exists() && pkgFile.canRead();
     }
     
     private boolean checkSystemCompatibility() {
@@ -308,8 +331,32 @@ public class Android15WizardActivity extends AppCompatActivity {
     
     // Action functions
     private void requestPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            try {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(intent);
+                return;
+            } catch (Exception ignored) {
+                try {
+                    startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+                    return;
+                } catch (Exception ignoredToo) {
+                    // Continue to other permission requests below.
+                }
+            }
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            requestPermissions(new String[]{
+                android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+            }, 1);
         }
     }
     
