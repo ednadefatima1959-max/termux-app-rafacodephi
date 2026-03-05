@@ -296,7 +296,9 @@ public class Android15WizardActivity extends AppCompatActivity {
     private boolean checkBootstrapInstallation() {
         File prefixDir = new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH);
         File binDir = new File(TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH);
-        return prefixDir.exists() && binDir.exists();
+        File shellBinary = new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh");
+        File pkgBinary = new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/pkg");
+        return prefixDir.exists() && binDir.exists() && shellBinary.exists() && pkgBinary.exists();
     }
     
     private boolean checkSystemCompatibility() {
