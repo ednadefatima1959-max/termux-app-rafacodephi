@@ -274,7 +274,14 @@ def requiredBootstrapMetadata(File file, String expectedPackageName) {
 
 afterEvaluate {
     android.applicationVariants.all { variant ->
+        variant.preBuildProvider.get().dependsOn(downloadBootstraps)
         variant.javaCompileProvider.get().dependsOn(downloadBootstraps)
+    }
+
+    tasks.matching { task ->
+        task.name.startsWith("externalNativeBuild") || task.name.startsWith("configureNdkBuild")
+    }.configureEach {
+        dependsOn(downloadBootstraps)
     }
 }
 
