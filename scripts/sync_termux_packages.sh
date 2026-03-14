@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Sincroniza lista de pacotes do upstream termux/termux-packages
-# e regenera rafaelia/src/main/cpp/raf_termux_packages.c com IDs FNV-1a 32-bit.
+# e regenera rafaelia/src/main/cpp/raf_termux_packages.c com IDs FNV-1a 32-bit
+# + hash de verificacao secundario.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_C="$ROOT_DIR/rafaelia/src/main/cpp/raf_termux_packages.c"
@@ -32,6 +33,13 @@ def fnv1a32(data: bytes) -> int:
         h = (h * 16777619) & 0xFFFFFFFF
     return h
 
+def fnv1a32_seed(data: bytes, seed: int) -> int:
+    h = seed & 0xFFFFFFFF
+    for b in data:
+        h ^= b
+        h = (h * 16777619) & 0xFFFFFFFF
+    return h
+
 lines = []
 lines.append("/* raf_termux_packages.c")
 lines.append("   IDs deterministicos de pacotes Termux (sem libc, gerado)")
@@ -39,10 +47,36 @@ lines.append("*/")
 lines.append("")
 lines.append("#include \"raf_termux_packages.h\"")
 lines.append("")
-lines.append("static const raf_termux_pkg_id_t g_termux_pkgs[] = {")
+lines.append("#define RAF_TERMUX_PKG_VERIFY_SEED 0xA5A55A5Au")
+lines.append("")
+lines.append("#if RAF_TERMUX_PKG_NAME_PTR_ENABLE")
+lines.append("#define RAF_PKG_INIT(ID, NLEN, FLG, VFY, NPTR) { (ID), (NLEN), (FLG), (VFY), (NPTR) }")
+lines.append("")
+lines.append("static const char g_termux_pkg_names[] =")
 for nm in names:
+    esc = nm.replace('\\', '\\\\').replace('"', '\\"')
+    lines.append(f"  \"{esc}\\0\"")
+lines.append("  ;")
+lines.append("")
+lines.append("static const u32 g_termux_pkg_name_offs[] = {")
+off = 0
+for nm in names:
+    lines.append(f"  {off}u,")
+    off += len(nm) + 1
+lines.append("};")
+lines.append("#else")
+lines.append("#define RAF_PKG_INIT(ID, NLEN, FLG, VFY, NPTR) { (ID), (NLEN), (FLG), (VFY) }")
+lines.append("#endif")
+lines.append("")
+lines.append("static const raf_termux_pkg_id_t g_termux_pkgs[] = {")
+for idx, nm in enumerate(names):
     hid = fnv1a32(nm.encode("utf-8"))
-    lines.append(f"  {{ 0x{hid:08x}u, {len(nm)}u, 0u }}, /* {nm} */")
+    vfy = fnv1a32_seed(nm.encode("utf-8"), 0xA5A55A5A)
+    lines.append(f"#if RAF_TERMUX_PKG_NAME_PTR_ENABLE")
+    lines.append(f"  RAF_PKG_INIT(0x{hid:08x}u, {len(nm)}u, 0u, 0x{vfy:08x}u, &g_termux_pkg_names[g_termux_pkg_name_offs[{idx}u]]), /* {nm} */")
+    lines.append(f"#else")
+    lines.append(f"  RAF_PKG_INIT(0x{hid:08x}u, {len(nm)}u, 0u, 0x{vfy:08x}u, 0), /* {nm} */")
+    lines.append(f"#endif")
 lines.append("};")
 lines.append("")
 lines.append("static const raf_termux_pkg_table_t g_table = {")

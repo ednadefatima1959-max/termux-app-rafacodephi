@@ -9,10 +9,18 @@ typedef unsigned short     u16;
 typedef unsigned int       u32;
 typedef unsigned long long u64;
 
+#ifndef RAF_TERMUX_PKG_NAME_PTR_ENABLE
+#define RAF_TERMUX_PKG_NAME_PTR_ENABLE 0
+#endif
+
 typedef struct {
   u32 id;
   u16 name_len;
   u16 flags;
+  u32 verify;
+#if RAF_TERMUX_PKG_NAME_PTR_ENABLE
+  const char *name_ptr;
+#endif
 } raf_termux_pkg_id_t;
 
 typedef struct {
