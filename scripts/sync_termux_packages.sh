@@ -2,10 +2,12 @@
 set -euo pipefail
 
 # Sincroniza lista de pacotes do upstream termux/termux-packages
-# e regenera rafaelia/src/main/cpp/raf_termux_packages.c com IDs FNV-1a 32-bit.
+# e regenera rafaelia/src/main/cpp/raf_termux_packages.c sem Python.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_C="$ROOT_DIR/rafaelia/src/main/cpp/raf_termux_packages.c"
+TEMPLATE_C="$ROOT_DIR/scripts/templates/raf_termux_packages.c.tpl"
+TOOL_SRC="$ROOT_DIR/rafaelia/src/main/cpp/tools/raf_termux_pkg_tool.c"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
