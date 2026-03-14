@@ -1,5 +1,8 @@
 /* raf_termux_packages.c
    IDs deterministicos de pacotes Termux (sem libc, gerado)
+   source.url: https://github.com/termux/termux-packages.git
+   source.commit: 70f182678c76cb46d9a5d3d7a0926ed511887148
+   generated_at_utc: 2026-03-14T23:03:14Z
 */
 
 #include "raf_termux_packages.h"
