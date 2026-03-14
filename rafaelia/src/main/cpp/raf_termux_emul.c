@@ -94,12 +94,53 @@ static u32 RmR_hash_token(const u8 *buf, u32 len){
   return h;
 }
 
+static u32 RmR_hash_token_seed(const u8 *buf, u32 len, u32 seed){
+  u32 h = seed;
+  for(u32 i=0u;i<len;i++){
+    h ^= (u32)buf[i];
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+    __asm__ volatile(
+      "imull $0x01000193, %0"
+      : "+r"(h)
+      :
+      : "cc"
+    );
+#else
+    h *= 0x01000193u;
+#endif
+  }
+  return h;
+}
+
+static u32 RmR_termux_pkg_table_consistency(void){
+  const raf_termux_pkg_table_t *tb = RmR_termux_packages();
+  if(!tb || !tb->entries || tb->count == 0u) return 0x1001u;
+  for(u32 i=0u;i<tb->count;i++){
+    const raf_termux_pkg_id_t *ei = &tb->entries[i];
+    if(ei->name_len == 0u) return 0x1002u;
+    for(u32 j=i+1u;j<tb->count;j++){
+      if(ei->id == tb->entries[j].id){
+        return 0x2000u | (i & 0x0FFFu);
+      }
+    }
+#if RAF_TERMUX_PKG_NAME_PTR_ENABLE
+    if(!ei->name_ptr) return 0x3001u;
+    {
+      u32 verify = RmR_hash_token_seed((const u8*)ei->name_ptr, (u32)ei->name_len, 0xA5A55A5Au);
+      if(verify != ei->verify) return 0x3002u;
+    }
+#endif
+  }
+  return 0u;
+}
+
 static u8 RmR_pkg_exists_catalog(const u8 *name, u32 name_len, u32 *id_out){
   const raf_termux_pkg_table_t *tb = RmR_termux_packages();
   if(!tb || !name || name_len == 0u) return 0u;
   u32 id = RmR_hash_token(name, name_len);
+  u32 verify = RmR_hash_token_seed(name, name_len, 0xA5A55A5Au);
   for(u32 i=0u;i<tb->count;i++){
-    if(tb->entries[i].id == id && (u32)tb->entries[i].name_len == name_len){
+    if(tb->entries[i].id == id && tb->entries[i].verify == verify && (u32)tb->entries[i].name_len == name_len){
       if(id_out) *id_out = id;
       return 1u;
     }
@@ -108,6 +149,8 @@ static u8 RmR_pkg_exists_catalog(const u8 *name, u32 name_len, u32 *id_out){
 }
 
 void RmR_emul_init(raf_termux_emu_t *emu, const struct RAF_EMU_IO *io, u32 arch_id, u8 bus_bits){
+  static u8 g_pkg_checked = 0u;
+  static u32 g_pkg_check_status = 0u;
   if(!emu) return;
   RmR_toolset_init();
   emu->io = *io;
@@ -117,7 +160,11 @@ void RmR_emul_init(raf_termux_emu_t *emu, const struct RAF_EMU_IO *io, u32 arch_
   emu->bus_bits = bus_bits;
   emu->_pad0 = 0u;
   emu->seed = 0x0B17AFu;
-  emu->last_status = 0u;
+  if(g_pkg_checked == 0u){
+    g_pkg_check_status = RmR_termux_pkg_table_consistency();
+    g_pkg_checked = 1u;
+  }
+  emu->last_status = g_pkg_check_status;
   emu->package_count = 0u;
   {
     u32 count = RmR_toolset_count();
