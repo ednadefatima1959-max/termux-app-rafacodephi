@@ -231,12 +231,16 @@ adb shell pm grant com.termux.rafacodephi android.permission.WRITE_EXTERNAL_STOR
 
 **Solução:**
 ```bash
+# Gerar local.properties automaticamente com sdk.dir
+make doctor
+
 # Limpar build
 ./gradlew clean
 
 # Verificar SDK/NDK
 echo $ANDROID_HOME
-ls $ANDROID_HOME/ndk/
+echo $ANDROID_SDK_ROOT
+ls "$ANDROID_SDK_ROOT/ndk" 2>/dev/null || ls "$ANDROID_HOME/ndk"
 
 # Instalar dependencies
 ./gradlew dependencies
@@ -244,6 +248,8 @@ ls $ANDROID_HOME/ndk/
 # Re-build
 ./gradlew assembleDebug --stacktrace
 ```
+
+> Dica: se aparecer o erro `SDK location not found`, rode `make doctor` novamente após exportar `ANDROID_SDK_ROOT`.
 
 ---
 
