@@ -2,6 +2,10 @@ package com.termux.shared.termux;
 
 import androidx.annotation.NonNull;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Constantes compartilhadas entre o app Termux RAFCODEΦ e seus plugins.
  * Versão adaptada do original v0.53.0 para o fork:
@@ -140,6 +144,8 @@ public final class TermuxConstants {
     @NonNull
     public static final String TERMUX_PACKAGES_GITHUB_ISSUES_URL = TERMUX_PACKAGES_GITHUB_REPO_URL + "/issues";
     @NonNull
+    public static final String TERMUX_PACKAGES_GITHUB_ISSUES_REPO_URL = TERMUX_PACKAGES_GITHUB_ISSUES_URL; // alias para compatibilidade
+    @NonNull
     public static final String TERMUX_PACKAGES_GITHUB_WIKI_URL = TERMUX_PACKAGES_GITHUB_REPO_URL + "/wiki";
 
     // ------------------------------------------------------------
@@ -207,6 +213,8 @@ public final class TermuxConstants {
     @NonNull
     public static final String TERMUX_SUPPORT_EMAIL_URL = "support@termux.dev"; // ou seu email
     @NonNull
+    public static final String TERMUX_SUPPORT_EMAIL_MAILTO_URL = "mailto:" + TERMUX_SUPPORT_EMAIL_URL;
+    @NonNull
     public static final String TERMUX_REDDIT_SUBREDDIT = "termux";
     @NonNull
     public static final String TERMUX_REDDIT_SUBREDDIT_URL = "https://reddit.com/r/" + TERMUX_REDDIT_SUBREDDIT;
@@ -216,7 +224,7 @@ public final class TermuxConstants {
     public static final String TERMUX_DONATE_URL = "https://termux.dev/donate";
 
     // ------------------------------------------------------------
-    // 9. Actions, extras, notificações (resumo)
+    // 9. Actions, extras, notificações
     // ------------------------------------------------------------
     public static final String TERMUX_ACTIVITY_ACTION_REQUEST_PERMISSIONS = TERMUX_PACKAGE_NAME + ".action.REQUEST_PERMISSIONS";
     public static final String TERMUX_SERVICE_NAME = TERMUX_PACKAGE_NAME + ".TermuxService";
@@ -226,6 +234,40 @@ public final class TermuxConstants {
     public static final String TERMUX_APP_NOTIFICATION_CHANNEL_NAME = "Termux RAFCODEΦ";
     public static final int TERMUX_APP_NOTIFICATION_ID = 1;
 
-    // Evita instanciação
-    private TermuxConstants() {}
+    // ------------------------------------------------------------
+    // 10. Broadcasts
+    // ------------------------------------------------------------
+    public static final String BROADCAST_TERMUX_OPENED = TERMUX_PACKAGE_NAME + ".action.OPENED";
+
+    // ------------------------------------------------------------
+    // 11. Canais de notificação para crash reports
+    // ------------------------------------------------------------
+    public static final String TERMUX_CRASH_REPORTS_NOTIFICATION_CHANNEL_ID = TERMUX_PACKAGE_NAME + ".crash_reports";
+    public static final String TERMUX_CRASH_REPORTS_NOTIFICATION_CHANNEL_NAME = "Termux Crash Reports";
+
+    // ------------------------------------------------------------
+    // 12. Lista de nomes de pacotes dos plugins oficiais (imutável)
+    // ------------------------------------------------------------
+    public static final List<String> TERMUX_PLUGIN_APP_PACKAGE_NAMES_LIST = Collections.unmodifiableList(Arrays.asList(
+            TERMUX_API_PACKAGE_NAME,
+            TERMUX_BOOT_PACKAGE_NAME,
+            TERMUX_FLOAT_PACKAGE_NAME,
+            TERMUX_STYLING_PACKAGE_NAME,
+            TERMUX_TASKER_PACKAGE_NAME,
+            TERMUX_WIDGET_PACKAGE_NAME
+    ));
+
+    // ------------------------------------------------------------
+    // 13. Inner class com constantes específicas do app Termux
+    // ------------------------------------------------------------
+    public static final class TERMUX_APP {
+        public static final String BUILD_CONFIG_CLASS_NAME = TERMUX_PACKAGE_NAME + ".BuildConfig";
+
+        public static final class TERMUX_ACTIVITY {
+            public static final String ACTION_NOTIFY_APP_CRASH = TERMUX_PACKAGE_NAME + ".action.NOTIFY_APP_CRASH";
+        }
     }
+
+    // Construtor privado para evitar instanciação
+    private TermuxConstants() {}
+}
