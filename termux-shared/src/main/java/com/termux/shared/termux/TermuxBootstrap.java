@@ -1,221 +1,164 @@
 package com.termux.shared.termux;
 
 import android.content.Context;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP;
 
-public class TermuxBootstrap {
+public final class TermuxBootstrap {
 
     private static final String LOG_TAG = "TermuxBootstrap";
 
-    /** The field name used by Termux app to store package variant in
-     * {@link TERMUX_APP#BUILD_CONFIG_CLASS_NAME} class. */
+    /** Nome do campo na classe BuildConfig do Termux que armazena a variante do pacote. */
     public static final String BUILD_CONFIG_FIELD_TERMUX_PACKAGE_VARIANT = "TERMUX_PACKAGE_VARIANT";
 
+    /** Gerenciador de pacotes usado no bootstrap (definido no build.gradle). */
+    @Nullable
+    public static BootstrapPackageManager TERMUX_APP_PACKAGE_MANAGER;
 
-    /** The {@link PackageManager} for the bootstrap in the app APK added in app/build.gradle. */
-    public static PackageManager TERMUX_APP_PACKAGE_MANAGER;
+    /** Variante do pacote (ex: "apt-android-7"). */
+    @Nullable
+    public static BootstrapPackageVariant TERMUX_APP_PACKAGE_VARIANT;
 
-    /** The {@link PackageVariant} for the bootstrap in the app APK added in app/build.gradle. */
-    public static PackageVariant TERMUX_APP_PACKAGE_VARIANT;
-
-    /** Set {@link #TERMUX_APP_PACKAGE_VARIANT} and {@link #TERMUX_APP_PACKAGE_MANAGER} from {@code packageVariantName} passed. */
-    public static void setTermuxPackageManagerAndVariant(@Nullable String packageVariantName) {
-        TERMUX_APP_PACKAGE_VARIANT = PackageVariant.variantOf(packageVariantName);
-        if (TERMUX_APP_PACKAGE_VARIANT == null) {
-            Logger.logError(LOG_TAG, "Unsupported TERMUX_APP_PACKAGE_VARIANT \"" + packageVariantName + "\". Falling back to \"apt-android-7\".");
-            TERMUX_APP_PACKAGE_VARIANT = PackageVariant.APT_ANDROID_7;
-        }
-
-        Logger.logVerbose(LOG_TAG, "Set TERMUX_APP_PACKAGE_VARIANT to \"" + TERMUX_APP_PACKAGE_VARIANT + "\"");
-
-        // Set packageManagerName to substring before first dash "-" in packageVariantName
-        int index = packageVariantName.indexOf('-');
-        String packageManagerName = (index == -1) ? null : packageVariantName.substring(0, index);
-        TERMUX_APP_PACKAGE_MANAGER = PackageManager.managerOf(packageManagerName);
-        if (TERMUX_APP_PACKAGE_MANAGER == null) {
-            Logger.logError(LOG_TAG, "Unsupported TERMUX_APP_PACKAGE_MANAGER \"" + packageManagerName + "\" with variant \"" + packageVariantName + "\". Falling back to \"apt\".");
-            TERMUX_APP_PACKAGE_MANAGER = PackageManager.APT;
-        }
-
-        Logger.logVerbose(LOG_TAG, "Set TERMUX_APP_PACKAGE_MANAGER to \"" + TERMUX_APP_PACKAGE_MANAGER + "\"");
+    private TermuxBootstrap() {
+        // Classe utilitária – não instanciar
     }
 
     /**
-     * Set {@link #TERMUX_APP_PACKAGE_VARIANT} and {@link #TERMUX_APP_PACKAGE_MANAGER} with the
-     * {@link #BUILD_CONFIG_FIELD_TERMUX_PACKAGE_VARIANT} field value from the
-     * {@link TERMUX_APP#BUILD_CONFIG_CLASS_NAME} class of the Termux app APK installed on the device.
-     * This can only be used by apps that share `sharedUserId` with the Termux app and can be used
-     * by plugin apps.
+     * Define {@link #TERMUX_APP_PACKAGE_MANAGER} e {@link #TERMUX_APP_PACKAGE_VARIANT}
+     * a partir do nome da variante.
      *
-     * @param currentPackageContext The context of current package.
+     * @param packageVariantName Nome da variante (ex: "apt-android-7") ou null
+     */
+    public static void setTermuxPackageManagerAndVariant(@Nullable String packageVariantName) {
+        if (packageVariantName == null || packageVariantName.isEmpty()) {
+            Logger.logError(LOG_TAG, "packageVariantName é nulo/vazio. Usando fallback: apt-android-7");
+            packageVariantName = "apt-android-7";
+        }
+
+        TERMUX_APP_PACKAGE_VARIANT = BootstrapPackageVariant.variantOf(packageVariantName);
+        if (TERMUX_APP_PACKAGE_VARIANT == null) {
+            Logger.logError(LOG_TAG, "Variante \"" + packageVariantName + "\" não suportada. Usando APT_ANDROID_7.");
+            TERMUX_APP_PACKAGE_VARIANT = BootstrapPackageVariant.APT_ANDROID_7;
+        }
+        Logger.logVerbose(LOG_TAG, "TERMUX_APP_PACKAGE_VARIANT = " + TERMUX_APP_PACKAGE_VARIANT);
+
+        // O gerente é a parte antes do primeiro hífen
+        int index = packageVariantName.indexOf('-');
+        String managerName = (index == -1) ? packageVariantName : packageVariantName.substring(0, index);
+        TERMUX_APP_PACKAGE_MANAGER = BootstrapPackageManager.managerOf(managerName);
+        if (TERMUX_APP_PACKAGE_MANAGER == null) {
+            Logger.logError(LOG_TAG, "Gerenciador \"" + managerName + "\" não suportado. Usando APT.");
+            TERMUX_APP_PACKAGE_MANAGER = BootstrapPackageManager.APT;
+        }
+        Logger.logVerbose(LOG_TAG, "TERMUX_APP_PACKAGE_MANAGER = " + TERMUX_APP_PACKAGE_MANAGER);
+    }
+
+    /**
+     * Lê a variante do pacote a partir da classe BuildConfig do Termux (requer sharedUserId).
+     * Só funciona se o app atual compartilha o mesmo UID do Termux.
+     *
+     * @param currentPackageContext Contexto do pacote atual (plugin, etc.)
      */
     public static void setTermuxPackageManagerAndVariantFromTermuxApp(@NonNull Context currentPackageContext) {
-        String packageVariantName = getTermuxAppBuildConfigPackageVariantFromTermuxApp(currentPackageContext);
-        if (packageVariantName != null) {
-            TermuxBootstrap.setTermuxPackageManagerAndVariant(packageVariantName);
+        String variant = getTermuxAppBuildConfigPackageVariantFromTermuxApp(currentPackageContext);
+        if (variant != null) {
+            setTermuxPackageManagerAndVariant(variant);
         } else {
-            Logger.logError(LOG_TAG, "Failed to set TERMUX_APP_PACKAGE_VARIANT and TERMUX_APP_PACKAGE_MANAGER from the termux app");
+            Logger.logError(LOG_TAG, "Falha ao obter variante do Termux app. Usando fallback padrão.");
+            setTermuxPackageManagerAndVariant(null);
         }
     }
 
     /**
-     * Get {@link #BUILD_CONFIG_FIELD_TERMUX_PACKAGE_VARIANT} field value from the
-     * {@link TERMUX_APP#BUILD_CONFIG_CLASS_NAME} class of the Termux app APK installed on the device.
-     * This can only be used by apps that share `sharedUserId` with the Termux app.
-     *
-     * @param currentPackageContext The context of current package.
-     * @return Returns the field value, otherwise {@code null} if an exception was raised or failed
-     * to get termux app package context.
+     * Obtém o valor do campo {@link #BUILD_CONFIG_FIELD_TERMUX_PACKAGE_VARIANT}
+     * da classe BuildConfig do Termux instalado.
      */
+    @Nullable
     public static String getTermuxAppBuildConfigPackageVariantFromTermuxApp(@NonNull Context currentPackageContext) {
         try {
-            return (String) TermuxUtils.getTermuxAppAPKBuildConfigClassField(currentPackageContext, BUILD_CONFIG_FIELD_TERMUX_PACKAGE_VARIANT);
+            Object value = TermuxUtils.getTermuxAppAPKBuildConfigClassField(
+                    currentPackageContext,
+                    BUILD_CONFIG_FIELD_TERMUX_PACKAGE_VARIANT
+            );
+            return (value instanceof String) ? (String) value : null;
         } catch (Exception e) {
-            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to get \"" + BUILD_CONFIG_FIELD_TERMUX_PACKAGE_VARIANT + "\" value from \"" + TERMUX_APP.BUILD_CONFIG_CLASS_NAME + "\" class", e);
+            Logger.logStackTraceWithMessage(LOG_TAG,
+                    "Erro ao ler campo " + BUILD_CONFIG_FIELD_TERMUX_PACKAGE_VARIANT +
+                    " da classe " + TERMUX_APP.BUILD_CONFIG_CLASS_NAME, e);
             return null;
         }
     }
 
+    // ========== Métodos auxiliares de verificação ==========
 
-
-    /** Is {@link PackageManager#APT} set as {@link #TERMUX_APP_PACKAGE_MANAGER}. */
     public static boolean isAppPackageManagerAPT() {
-        return PackageManager.APT.equals(TERMUX_APP_PACKAGE_MANAGER);
+        return BootstrapPackageManager.APT.equals(TERMUX_APP_PACKAGE_MANAGER);
     }
 
-    ///** Is {@link PackageManager#TAPM} set as {@link #TERMUX_APP_PACKAGE_MANAGER}. */
-    //public static boolean isAppPackageManagerTAPM() {
-    //    return PackageManager.TAPM.equals(TERMUX_APP_PACKAGE_MANAGER);
-    //}
-
-    ///** Is {@link PackageManager#PACMAN} set as {@link #TERMUX_APP_PACKAGE_MANAGER}. */
-    //public static boolean isAppPackageManagerPACMAN() {
-    //    return PackageManager.PACMAN.equals(TERMUX_APP_PACKAGE_MANAGER);
-    //}
-
-
-
-    /** Is {@link PackageVariant#APT_ANDROID_7} set as {@link #TERMUX_APP_PACKAGE_VARIANT}. */
     public static boolean isAppPackageVariantAPTAndroid7() {
-        return PackageVariant.APT_ANDROID_7.equals(TERMUX_APP_PACKAGE_VARIANT);
+        return BootstrapPackageVariant.APT_ANDROID_7.equals(TERMUX_APP_PACKAGE_VARIANT);
     }
 
-    /** Is {@link PackageVariant#APT_ANDROID_5} set as {@link #TERMUX_APP_PACKAGE_VARIANT}. */
     public static boolean isAppPackageVariantAPTAndroid5() {
-        return PackageVariant.APT_ANDROID_5.equals(TERMUX_APP_PACKAGE_VARIANT);
+        return BootstrapPackageVariant.APT_ANDROID_5.equals(TERMUX_APP_PACKAGE_VARIANT);
     }
 
-    ///** Is {@link PackageVariant#TAPM_ANDROID_7} set as {@link #TERMUX_APP_PACKAGE_VARIANT}. */
-    //public static boolean isAppPackageVariantTAPMAndroid7() {
-    //    return PackageVariant.TAPM_ANDROID_7.equals(TERMUX_APP_PACKAGE_VARIANT);
-    //}
+    // ========== Enums otimizadas ==========
 
-    ///** Is {@link PackageVariant#PACMAN_ANDROID_7} set as {@link #TERMUX_APP_PACKAGE_VARIANT}. */
-    //public static boolean isAppPackageVariantTPACMANAndroid7() {
-    //    return PackageVariant.PACMAN_ANDROID_7.equals(TERMUX_APP_PACKAGE_VARIANT);
-    //}
-
-
-
-    /** Termux package manager. */
-    public enum PackageManager {
-
-        /**
-         * Advanced Package Tool (APT) for managing debian deb package files.
-         * https://wiki.debian.org/Apt
-         * https://wiki.debian.org/deb
-         */
+    /** Gerenciadores de pacote suportados (APENAS apt ativo – outros podem ser adicionados). */
+    public enum BootstrapPackageManager {
         APT("apt");
 
-        ///**
-        // * Termux Android Package Manager (TAPM) for managing termux apk package files.
-        // * https://en.wikipedia.org/wiki/Apk_(file_format)
-        // */
-        //TAPM("tapm");
-
-        ///**
-        // * Package Manager (PACMAN) for managing arch linux pkg.tar package files.
-        // * https://wiki.archlinux.org/title/pacman
-        // * https://en.wikipedia.org/wiki/Arch_Linux#Pacman
-        // */
-        //PACMAN("pacman");
-
         private final String name;
 
-        PackageManager(final String name) {
-            this.name = name;
-        }
+        BootstrapPackageManager(String name) { this.name = name; }
 
-        public String getName() {
-            return name;
-        }
+        public String getName() { return name; }
 
         public boolean equalsManager(String manager) {
-            return manager != null && manager.equals(this.name);
+            return manager != null && manager.equals(name);
         }
 
-        /** Get {@link PackageManager} for {@code name} if found, otherwise {@code null}. */
         @Nullable
-        public static PackageManager managerOf(String name) {
-            if (name == null || name.isEmpty()) return null;
-            for (PackageManager v : PackageManager.values()) {
-                if (v.name.equals(name)) {
-                    return v;
-                }
+        public static BootstrapPackageManager managerOf(String name) {
+            if (name == null) return null;
+            for (BootstrapPackageManager v : values()) {
+                if (v.name.equals(name)) return v;
             }
             return null;
         }
 
+        @Override
+        public String toString() { return name; }
     }
 
-
-
-    /** Termux package variant. The substring before first dash "-" must match one of the {@link PackageManager}. */
-    public enum PackageVariant {
-
-        /** {@link PackageManager#APT} variant for Android 7+. */
+    /** Variantes de pacote (cada uma associa um gerenciador + versão Android mínima). */
+    public enum BootstrapPackageVariant {
         APT_ANDROID_7("apt-android-7"),
-
-        /** {@link PackageManager#APT} variant for Android 5+. */
         APT_ANDROID_5("apt-android-5");
-
-        ///** {@link PackageManager#TAPM} variant for Android 7+. */
-        //TAPM_ANDROID_7("tapm-android-7");
-
-        ///** {@link PackageManager#PACMAN} variant for Android 7+. */
-        //PACMAN_ANDROID_7("pacman-android-7");
 
         private final String name;
 
-        PackageVariant(final String name) {
-            this.name = name;
-        }
+        BootstrapPackageVariant(String name) { this.name = name; }
 
-        public String getName() {
-            return name;
-        }
+        public String getName() { return name; }
 
         public boolean equalsVariant(String variant) {
-            return variant != null && variant.equals(this.name);
+            return variant != null && variant.equals(name);
         }
 
-        /** Get {@link PackageVariant} for {@code name} if found, otherwise {@code null}. */
         @Nullable
-        public static PackageVariant variantOf(String name) {
-            if (name == null || name.isEmpty()) return null;
-            for (PackageVariant v : PackageVariant.values()) {
-                if (v.name.equals(name)) {
-                    return v;
-                }
+        public static BootstrapPackageVariant variantOf(String name) {
+            if (name == null) return null;
+            for (BootstrapPackageVariant v : values()) {
+                if (v.name.equals(name)) return v;
             }
             return null;
         }
 
+        @Override
+        public String toString() { return name; }
     }
-
 }
