@@ -357,18 +357,13 @@ task validatePackageNames {
     }
 }
 
-// Validation task to check for legacy storage flags
+// Validation task to check storage flags and legacy permission bounds
 task validateStorageFlags {
-    description = 'Validates that requestLegacyExternalStorage is not used when targeting SDK >= 30'
+    description = 'Validates storage permissions/flags for modern targetSdk requirements'
     group = 'verification'
     
     doLast {
         def targetSdk = android.defaultConfig.targetSdkVersion.apiLevel
-        if (targetSdk < 30) {
-            println "⚠️  targetSdkVersion is ${targetSdk}, skipping legacy storage check"
-            return
-        }
-        
         def errors = []
         def manifestFiles = fileTree(project.rootProject.projectDir) {
             include '**/AndroidManifest.xml'
@@ -379,18 +374,26 @@ task validateStorageFlags {
             def lineNumber = 0
             file.eachLine { line ->
                 lineNumber++
-                if (line.contains('requestLegacyExternalStorage') && line.contains('true')) {
+                if (targetSdk >= 30 && line.contains('requestLegacyExternalStorage') && line.contains('true')) {
                     errors.add("${file.path}:${lineNumber}: requestLegacyExternalStorage=true found")
+                }
+                if (targetSdk >= 33 && line.contains('android.permission.READ_EXTERNAL_STORAGE') &&
+                    !line.contains('android:maxSdkVersion="32"')) {
+                    errors.add("${file.path}:${lineNumber}: READ_EXTERNAL_STORAGE must be bounded with maxSdkVersion=32 for targetSdk >= 33")
+                }
+                if (targetSdk >= 33 && line.contains('android.permission.WRITE_EXTERNAL_STORAGE') &&
+                    !line.contains('android:maxSdkVersion="32"')) {
+                    errors.add("${file.path}:${lineNumber}: WRITE_EXTERNAL_STORAGE must be bounded with maxSdkVersion=32 for targetSdk >= 33")
                 }
             }
         }
         
         if (!errors.isEmpty()) {
-            def errorMsg = "\n❌ Found requestLegacyExternalStorage with targetSdk >= 30:\n"
+            def errorMsg = "\n❌ Found storage compatibility issues for targetSdk ${targetSdk}:\n"
             errors.each { errorMsg += "  ${it}\n" }
             throw new GradleException(errorMsg)
         } else {
-            println "✅ Storage flags validation passed!"
+            println "✅ Storage flags validation passed for targetSdk ${targetSdk}!"
         }
     }
 }
@@ -412,11 +415,12 @@ task validateAuthorities {
             file.eachLine { line ->
                 lineNumber++
                 // Check for android:authorities with hardcoded package name
-                if (line.contains('android:authorities=') && 
-                    line.contains('com.termux') && 
-                    !line.contains('${TERMUX_PACKAGE_NAME}') &&
-                    !line.contains('com.termux.rafacodephi')) {
-                    errors.add("${file.path}:${lineNumber}: ${line.trim()}")
+                if (line.contains('android:authorities=')) {
+                    def hasHardcodedTermuxAuthority = line.contains('com.termux')
+                    def usesPlaceholderAuthority = line.contains('${TERMUX_PACKAGE_NAME}') || line.contains('${applicationId}')
+                    if (hasHardcodedTermuxAuthority && !usesPlaceholderAuthority) {
+                        errors.add("${file.path}:${lineNumber}: ${line.trim()}")
+                    }
                 }
             }
         }
@@ -438,6 +442,17 @@ task validateAndroid15Compatibility {
     dependsOn validatePackageNames, validateStorageFlags, validateAuthorities
     
     doLast {
-        println "\n✅ All Android 15 compatibility validations passed!"
+        def targetSdk = android.defaultConfig.targetSdkVersion.apiLevel
+        def compileSdk = android.compileSdkVersion as Integer
+
+        if (targetSdk < 34) {
+            throw new GradleException("targetSdkVersion ${targetSdk} is too low. Android 15 compatibility requires at least 34.")
+        }
+
+        if (targetSdk > compileSdk) {
+            throw new GradleException("targetSdkVersion ${targetSdk} cannot be higher than compileSdkVersion ${compileSdk}.")
+        }
+
+        println "\n✅ All Android 15 compatibility validations passed for targetSdk ${targetSdk} / compileSdk ${compileSdk}!"
     }
 }
