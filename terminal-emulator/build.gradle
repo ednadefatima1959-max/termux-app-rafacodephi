@@ -2,19 +2,23 @@ apply plugin: 'com.android.library'
 
 android {
     namespace "com.termux.terminal"
-    compileSdk 34                     // valor fixo (compileApi)
-    buildToolsVersion "34.0.0"       // fixo
-    ndkVersion "26.3.11579264"       // fixo
+    compileSdkVersion rootProject.ext.compileApi
+    buildToolsVersion rootProject.ext.toolsVersion
+    ndkVersion rootProject.ext.ndkVersion
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
 
     defaultConfig {
-        minSdk 21                    // minApi
-        targetSdk 34                 // targetApi
+        minSdkVersion rootProject.ext.minApi
+        targetSdkVersion rootProject.ext.targetApi
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         ndk {
-            // ABIs fixas: escolha UMA das linhas abaixo e comente as outras
-            abiFilters "arm64-v8a"                               // arm64-only
-            // abiFilters "arm64-v8a", "armeabi-v7a"             // arm32-arm64
-            // abiFilters "arm64-v8a", "armeabi-v7a", "x86", "x86_64", "riscv64" // todas
+            abiFilters(*rootProject.ext.supportedAbis as String[])
         }
     }
 
@@ -26,9 +30,82 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.toVersion(rootProject.ext.javaLanguageVersion)
+        targetCompatibility JavaVersion.toVersion(rootProject.ext.javaLanguageVersion)
     }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
+    // --- Bloco otimizado: sem alocações de lista / GC ---
+    def supportedAbisArr = rootProject.ext.supportedAbis
+    if (supportedAbisArr == null) supportedAbisArr = []
+    def allowedAbisArr = rootProject.ext.allowedAbis
+    if (allowedAbisArr == null) allowedAbisArr = ['arm64-v8a']
+    def policy = rootProject.ext.appAbiPolicy?.toString() ?: ''
+    def ciValidation = Boolean.parseBoolean(project.findProperty('CI_INTERNAL_VALIDATION')?.toString() ?: 'false')
+
+    // Validação de ABIs não suportadas (sem findAll)
+    def unsupported = []
+    for (abi in supportedAbisArr) {
+        def found = false
+        for (allowed in allowedAbisArr) {
+            if (abi == allowed) { found = true; break }
+        }
+        if (!found) unsupported.add(abi)
+    }
+    if (!unsupported.isEmpty()) {
+        throw new GradleException("terminal-emulator detectou ABIs não suportadas: ${unsupported}.")
+    }
+
+    // Aplica política de ABIs (switch mantido, sem criação de lista extra além do esperado)
+    if (policy == "arm64-only") {
+        if (supportedAbisArr.size() != 1 || supportedAbisArr[0] != "arm64-v8a") {
+            throw new GradleException("terminal-emulator: arm64-only exige SUPPORTED_ABIS=arm64-v8a (atual: ${supportedAbisArr}).")
+        }
+    } else if (policy == "arm32-arm64") {
+        if (supportedAbisArr.size() != 2 ||
+            !(supportedAbisArr[0] == "arm64-v8a" && supportedAbisArr[1] == "armeabi-v7a") &&
+            !(supportedAbisArr[0] == "armeabi-v7a" && supportedAbisArr[1] == "arm64-v8a")) {
+            throw new GradleException("terminal-emulator: arm32-arm64 exige SUPPORTED_ABIS=[arm64-v8a, armeabi-v7a] (atual: ${supportedAbisArr}).")
+        }
+    } else if (policy == "internal-5abi") {
+        if (!ciValidation) {
+            throw new GradleException("terminal-emulator: internal-5abi exige CI_INTERNAL_VALIDATION=true.")
+        }
+        def expected = ["arm64-v8a","armeabi-v7a","x86","x86_64","riscv64"]
+        if (supportedAbisArr.size() != expected.size()) {
+            throw new GradleException("terminal-emulator: internal-5abi exige SUPPORTED_ABIS=${expected} (atual: ${supportedAbisArr}).")
+        }
+        for (int i = 0; i < expected.size(); i++) {
+            if (supportedAbisArr[i] != expected[i]) {
+                throw new GradleException("terminal-emulator: internal-5abi exige SUPPORTED_ABIS=${expected} (atual: ${supportedAbisArr}).")
+            }
+        }
+    } else if (policy != "") {
+        throw new GradleException("terminal-emulator: APP_ABI_POLICY inválida: '${policy}'. Esperado: arm64-only, arm32-arm64 ou internal-5abi.")
+    }
+
+    // PackagingOptions sem findAll/collect – iteração manual
+    packagingOptions {
+        jniLibs {
+            def allKnown = ["arm64-v8a","armeabi-v7a","x86","x86_64","riscv64"]
+            def toExclude = []
+            for (abi in allKnown) {
+                def keep = false
+                for (sup in supportedAbisArr) {
+                    if (abi == sup) { keep = true; break }
+                }
+                if (!keep) toExclude.add("**/${abi}/*.so")
+            }
+            excludes += toExclude
+        }
+    }
+}
+
+tasks.withType(Test) {
+    testLogging { events "started","passed","skipped","failed" }
 }
 
 dependencies {
