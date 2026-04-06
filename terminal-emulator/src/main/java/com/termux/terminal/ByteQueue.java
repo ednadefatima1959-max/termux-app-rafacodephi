@@ -1,6 +1,5 @@
 package com.termux.terminal;
 
-/** A circular byte buffer allowing one producer and one consumer thread. */
 final class ByteQueue {
 
     private final byte[] mBuffer;
@@ -51,12 +50,7 @@ final class ByteQueue {
         return totalRead;
     }
 
-    /**
-     * Attempt to write the specified portion of the provided buffer to the queue.
-     * <p/>
-     * Returns whether the output was totally written, false if it was closed before.
-     */
-    public boolean write(byte[] buffer, int offset, int lengthToWrite) {
+    public synchronized boolean write(byte[] buffer, int offset, int lengthToWrite) {
         if (lengthToWrite + offset > buffer.length) {
             throw new IllegalArgumentException("length + offset > buffer.length");
         } else if (lengthToWrite <= 0) {
@@ -65,44 +59,32 @@ final class ByteQueue {
 
         final int bufferLength = mBuffer.length;
 
-        synchronized (this) {
-            while (lengthToWrite > 0) {
-                while (bufferLength == mStoredBytes && mOpen) {
-                    try {
-                        wait();
-                    } catch (InterruptedException e) {
-                        // Ignore.
-                    }
+        while (lengthToWrite > 0) {
+            while (bufferLength == mStoredBytes && mOpen) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    // Ignore.
                 }
-                if (!mOpen) return false;
-                final boolean wasEmpty = mStoredBytes == 0;
-                int bytesToWriteBeforeWaiting = Math.min(lengthToWrite, bufferLength - mStoredBytes);
-                lengthToWrite -= bytesToWriteBeforeWaiting;
-
-                while (bytesToWriteBeforeWaiting > 0) {
-                    int tail = mHead + mStoredBytes;
-                    int oneRun;
-                    if (tail >= bufferLength) {
-                        // Buffer: [.............]
-                        // ________________H_______T
-                        // =>
-                        // Buffer: [.............]
-                        // ___________T____H
-                        // onRun= _____----_
-                        tail = tail - bufferLength;
-                        oneRun = mHead - tail;
-                    } else {
-                        oneRun = bufferLength - tail;
-                    }
-                    int bytesToCopy = Math.min(oneRun, bytesToWriteBeforeWaiting);
-                    System.arraycopy(buffer, offset, mBuffer, tail, bytesToCopy);
-                    offset += bytesToCopy;
-                    bytesToWriteBeforeWaiting -= bytesToCopy;
-                    mStoredBytes += bytesToCopy;
-                }
-                if (wasEmpty) notify();
             }
+            if (!mOpen) return false;
+            final boolean wasEmpty = mStoredBytes == 0;
+            int bytesToWrite = Math.min(lengthToWrite, bufferLength - mStoredBytes);
+            lengthToWrite -= bytesToWrite;
+
+            int tail = mHead + mStoredBytes;
+            if (tail >= bufferLength) tail -= bufferLength;
+            int firstPart = Math.min(bytesToWrite, bufferLength - tail);
+            System.arraycopy(buffer, offset, mBuffer, tail, firstPart);
+            offset += firstPart;
+            bytesToWrite -= firstPart;
+            if (bytesToWrite > 0) {
+                System.arraycopy(buffer, offset, mBuffer, 0, bytesToWrite);
+                offset += bytesToWrite;
+            }
+            mStoredBytes += firstPart + bytesToWrite;
+            if (wasEmpty) notify();
         }
         return true;
     }
-}
+            }
