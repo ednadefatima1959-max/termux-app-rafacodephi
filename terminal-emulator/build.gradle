@@ -1,77 +1,97 @@
-apply plugin: 'com.android.library'
-apply plugin: 'maven-publish'
-
-android {
-    namespace "com.termux.emulator"
-
-    compileSdkVersion project.properties.compileSdkVersion.toInteger()
-    ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
-
-    defaultConfig {
-        minSdkVersion project.properties.minSdkVersion.toInteger()
-        targetSdkVersion project.properties.targetSdkVersion.toInteger()
-
-        externalNativeBuild {
-            ndkBuild {
-                cFlags "-std=c11", "-Wall", "-Wextra", "-Werror", "-Os", "-fno-stack-protector", "-Wl,--gc-sections"
-            }
-        }
-
-        ndk {
-            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
-        }
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
-    }
-
-    externalNativeBuild {
-        ndkBuild {
-            path "src/main/jni/Android.mk"
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    testOptions {
-        unitTests.returnDefaultValues = true
-    }
-}
-
-tasks.withType(Test) {
-    testLogging {
-        events "started", "passed", "skipped", "failed"
-    }
-}
-
-dependencies {
-    implementation "androidx.annotation:annotation:1.9.0"
-    testImplementation "junit:junit:4.13.2"
-}
-
-task sourceJar(type: Jar) {
-    from android.sourceSets.main.java.srcDirs
-    archiveClassifier = "sources"
-}
-
-afterEvaluate {
-    publishing {
-        publications {
-            // Creates a Maven publication called "release".
-            release(MavenPublication) {
-                from components.findByName('release')
-                groupId = 'com.termux'
-                artifactId = 'terminal-emulator'
-                version = '0.118.0'
-                artifact(sourceJar)
-            }
-        }
-    }
+apply plugin: 'com.android.library'  
+  
+android {  
+    namespace "com.termux.terminal"  
+    compileSdkVersion rootProject.ext.compileApi  
+    buildToolsVersion rootProject.ext.toolsVersion  
+    ndkVersion rootProject.ext.ndkVersion  
+  
+    buildTypes {  
+        release {  
+            minifyEnabled false  
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'  
+        }  
+    }  
+  
+    defaultConfig {  
+        minSdkVersion rootProject.ext.minApi  
+        targetSdkVersion rootProject.ext.targetApi  
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"  
+        ndk {  
+            abiFilters(*rootProject.ext.supportedAbis as String[])  
+        }  
+    }  
+  
+    // Compila libtermux.so para todas as ABIs declaradas — sem prebuilt  
+    externalNativeBuild {  
+        cmake {  
+            path "src/main/jni/CMakeLists.txt"  
+            version "3.22.1"  
+        }  
+    }  
+  
+    compileOptions {  
+        sourceCompatibility JavaVersion.toVersion(rootProject.ext.javaLanguageVersion)  
+        targetCompatibility JavaVersion.toVersion(rootProject.ext.javaLanguageVersion)  
+    }  
+  
+    testOptions {  
+        unitTests.returnDefaultValues = true  
+    }  
+  
+    def supportedAbis       = (rootProject.ext.supportedAbis ?: []) as List<String>  
+    def terminalEmulatorSupportedAbis = (rootProject.ext.allowedAbis ?: ['arm64-v8a']) as List<String>  
+    def appAbiPolicy        = (rootProject.ext.appAbiPolicy ?: '').toString()  
+    def ciInternalValidationEnabled = Boolean.parseBoolean(  
+        project.findProperty('CI_INTERNAL_VALIDATION')?.toString() ?: 'false')  
+    def internalValidationAbis = ['arm64-v8a','armeabi-v7a','x86','x86_64','riscv64']  
+    def allKnownAndroidAbis    = ['arm64-v8a','armeabi-v7a','x86','x86_64','riscv64']  
+  
+    def unsupportedRequestedAbis = supportedAbis.findAll { !(it in terminalEmulatorSupportedAbis) }  
+    if (!unsupportedRequestedAbis.isEmpty()) {  
+        throw new GradleException(  
+            "terminal-emulator detectou ABIs não suportadas: ${unsupportedRequestedAbis}.")  
+    }  
+  
+    switch (appAbiPolicy) {  
+        case "arm64-only":  
+            if (supportedAbis != ['arm64-v8a'])  
+                throw new GradleException(  
+                    "terminal-emulator: arm64-only exige SUPPORTED_ABIS=arm64-v8a (atual: ${supportedAbis}).")  
+            break  
+        case "arm32-arm64":  
+            def expected = ['arm64-v8a','armeabi-v7a']  
+            if (supportedAbis != expected)  
+                throw new GradleException(  
+                    "terminal-emulator: arm32-arm64 exige SUPPORTED_ABIS=${expected} (atual: ${supportedAbis}).")  
+            break  
+        case "internal-5abi":  
+            if (!ciInternalValidationEnabled)  
+                throw new GradleException(  
+                    "terminal-emulator: internal-5abi exige CI_INTERNAL_VALIDATION=true.")  
+            if (supportedAbis != internalValidationAbis)  
+                throw new GradleException(  
+                    "terminal-emulator: internal-5abi exige SUPPORTED_ABIS=${internalValidationAbis} (atual: ${supportedAbis}).")  
+            break  
+        default:  
+            throw new GradleException(  
+                "terminal-emulator: APP_ABI_POLICY inválida: '${appAbiPolicy}'. " +  
+                "Esperado: arm64-only, arm32-arm64 ou internal-5abi.")  
+    }  
+  
+    packagingOptions {  
+        jniLibs {  
+            excludes += allKnownAndroidAbis  
+                .findAll { !(it in supportedAbis) }  
+                .collect { "**/${it}/*.so" }  
+        }  
+    }  
+}  
+  
+tasks.withType(Test) {  
+    testLogging { events "started","passed","skipped","failed" }  
+}  
+  
+dependencies {  
+    testImplementation 'junit:junit:4.13.2'  
 }
